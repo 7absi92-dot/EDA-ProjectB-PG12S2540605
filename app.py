@@ -990,6 +990,7 @@ st.download_button(
     mime="text/markdown",
     key="download_project_card_md_section8_clean"
 )
+evidence_json_text = submission_json
 st.subheader("9. AI grader out of 80")
 st.warning("The AI grader uses the fixed /80 rubric. Peer score out of 20 is handled separately by instructors.")
  
