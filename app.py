@@ -406,7 +406,10 @@ with st.expander("Prepared X and y preview"):
     st.write("y preview")
     st.dataframe(y.head(10).to_frame("y"), use_container_width=True)
 # ==============================
+# ==============================
 # STUDENT ADDITIONS — MODELING
+# Paste this under the MODELING marker
+# ==============================
 
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import Ridge
