@@ -780,10 +780,6 @@ else:
 
 st.header("8. Export submission files")
 
-# ------------------------------
-# Safe fallback variables
-# ------------------------------
-
 if "results_df" not in globals():
     results_df = None
 
@@ -804,19 +800,12 @@ if "resample_rule" not in globals():
 
 if "insights_text" not in globals():
     insights_text = (
-        "Methodology: The dataset was loaded from the local sample CSV, audited for missing values, "
-        "then cleaned by parsing timestamps, converting the target to numeric values, sorting by time, "
-        "and preparing lag, rolling, calendar, and cyclic time features. "
-        "A time-based 80/20 train/test split was used so the model is evaluated on later unseen observations. "
-        "Dashboard visuals examine daily trends, hourly patterns, monthly seasonality, distribution, outliers, "
-        "and actual-versus-predicted performance. "
-        "Reproducibility: The project runs from app.py using data/dataset_sample.csv, fixed random_state values, "
-        "and downloadable submission.json and project_card.md files."
+        "Methodology: The dataset was loaded, audited, cleaned, sorted by time, "
+        "and used to create lag, rolling, calendar, and cyclic features. "
+        "A time-based 80/20 split was used for model evaluation. "
+        "The dashboard includes daily, hourly, monthly, distribution, outlier, "
+        "and actual-versus-predicted views."
     )
-
-# ------------------------------
-# Metrics and prediction evidence
-# ------------------------------
 
 has_metrics_table = isinstance(results_df, pd.DataFrame) and not results_df.empty
 
@@ -832,31 +821,17 @@ else:
     predictions_preview = []
     has_predictions = False
 
-# ------------------------------
-# Dataset evidence
-# ------------------------------
-
 dataset_rows = int(len(df)) if "df" in globals() and isinstance(df, pd.DataFrame) else 0
 dataset_columns = list(df.columns) if "df" in globals() and isinstance(df, pd.DataFrame) else []
 
 timestamp_used = timestamp_col if "timestamp_col" in globals() else "Not selected"
 target_used = target_col if "target_col" in globals() else "Not selected"
 
-# ------------------------------
-# Student/project metadata
-# ------------------------------
-
 student_name_export = student_name if "student_name" in globals() else "Ahmed Al Habsi"
 student_id_export = student_id if "student_id" in globals() else "PG12S2540605"
 project_title_export = project_title if "project_title" in globals() else "Solar Irradiance Time-Series Forecasting"
-project_goal_export = project_goal if "project_goal" in globals() else (
-    "Forecast solar irradiance using timestamp-based features and time-series modeling."
-)
+project_goal_export = project_goal if "project_goal" in globals() else "Forecast solar irradiance using time-series features."
 deployed_url_export = deployed_url if "deployed_url" in globals() else ""
-
-# ------------------------------
-# Main submission JSON
-# ------------------------------
 
 submission = {
     "student": {
@@ -884,19 +859,9 @@ submission = {
         "data_sorted_by_time": True,
         "resampling_discussed": True,
         "outliers_discussed": True,
-        "missing_timestamp_discussion": (
-            "Timestamps were parsed using pandas datetime conversion. "
-            "Rows with invalid timestamps were removed during cleaning. "
-            "The timestamp range and ordering were checked before feature creation."
-        ),
-        "outlier_discussion": (
-            "Outliers were reviewed using an IQR-based diagnostic in the dashboard. "
-            "Solar irradiance has natural zero values overnight, so outliers were discussed rather than automatically deleted."
-        ),
-        "resampling_discussion": (
-            "The app includes optional resampling before forecasting. "
-            "For this hourly NASA POWER dataset, hourly resolution is appropriate because the target changes strongly by hour."
-        )
+        "missing_timestamp_discussion": "Timestamps were parsed, invalid timestamps were removed, and rows were sorted by time before modeling.",
+        "outlier_discussion": "Outliers were reviewed using an IQR diagnostic. Solar irradiance naturally includes zero values at night, so outliers were discussed rather than automatically removed.",
+        "resampling_discussion": "The app includes optional resampling. For this hourly dataset, hourly resolution is appropriate because solar irradiance changes strongly by hour."
     },
     "feature_engineering_evidence": {
         "baseline_features_created": True,
@@ -947,21 +912,9 @@ submission = {
     },
     "presentation_evidence": {
         "insights": insights_text,
-        "methodology": (
-            "The workflow loads the local dataset, audits missing values and dtypes, "
-            "parses the timestamp column, sorts the data by time, creates lag and calendar features, "
-            "adds cyclic time features, trains models using an 80/20 time-based split, "
-            "and reports model metrics and dashboard insights."
-        ),
-        "reproducibility_notes": (
-            "The app runs from a single app.py file with data/dataset_sample.csv. "
-            "The Random Forest model uses random_state=42. "
-            "The app exports submission.json and project_card.md for grading evidence."
-        ),
-        "limitations": (
-            "The current model uses basic machine-learning methods and engineered time features. "
-            "Future work could compare more advanced forecasting models and test different forecast horizons."
-        )
+        "methodology": "The workflow loads the dataset, audits it, parses timestamps, sorts by time, engineers baseline and advanced features, applies a time-based split, trains models, and reports metrics.",
+        "reproducibility_notes": "The app runs from one app.py file using data/dataset_sample.csv. Random Forest uses random_state=42. The app exports submission.json and project_card.md.",
+        "limitations": "The current models are basic machine-learning models. Future work could compare additional forecasting methods and forecast horizons."
     }
 }
 
@@ -975,38 +928,28 @@ st.download_button(
     data=submission_json,
     file_name="submission.json",
     mime="application/json",
-    key="download_submission_json_section8_fixed"
+    key="download_submission_json_section8_clean"
 )
 
-# ------------------------------
-# Project card markdown
-# ------------------------------
-
 project_card_md = ""
-
 project_card_md += f"# Project B: {project_title_export}\n\n"
-
 project_card_md += "## Student\n"
 project_card_md += f"- Name: {student_name_export}\n"
 project_card_md += f"- Student ID: {student_id_export}\n\n"
-
 project_card_md += "## Goal\n"
 project_card_md += str(project_goal_export) + "\n\n"
-
 project_card_md += "## Dataset\n"
 project_card_md += f"- Rows: {dataset_rows}\n"
 project_card_md += f"- Timestamp column: `{timestamp_used}`\n"
 project_card_md += f"- Target column: `{target_used}`\n"
 project_card_md += f"- Resampling rule: {resample_rule}\n"
 project_card_md += f"- Forecast horizon: {horizon}\n\n"
-
 project_card_md += "## Data Integrity\n"
 project_card_md += "- Missing values checked: Yes\n"
 project_card_md += "- Timestamps parsed and sorted: Yes\n"
 project_card_md += "- Missing timestamp discussion: Included\n"
 project_card_md += "- Outlier discussion: Included\n"
 project_card_md += "- Resampling discussion: Included\n\n"
-
 project_card_md += "## Features Used\n"
 project_card_md += "Baseline features:\n"
 project_card_md += "- lag_1\n"
@@ -1015,114 +958,27 @@ project_card_md += "- rolling_mean_24\n"
 project_card_md += "- hour\n"
 project_card_md += "- weekend\n"
 project_card_md += "- month\n\n"
-
 project_card_md += "Advanced features:\n"
 project_card_md += "- hour_sin\n"
 project_card_md += "- hour_cos\n"
 project_card_md += "- month_sin\n"
 project_card_md += "- month_cos\n"
 project_card_md += "- lag_difference_24_1\n\n"
-
 project_card_md += "## Modeling\n"
 project_card_md += f"- Metrics table created: {has_metrics_table}\n"
 project_card_md += f"- Time-based split used: {has_metrics_table}\n"
 project_card_md += f"- Predictions created: {has_predictions}\n"
 project_card_md += "- Models compared: Naive Mean Baseline, Ridge Regression, Random Forest\n\n"
-
 project_card_md += "## Dashboard\n"
 project_card_md += f"- Dashboard plots created: {bool(has_dashboard_plots)}\n"
 project_card_md += "- Visuals include KPI cards, daily trend, hourly profile, monthly profile, weekday profile, distribution plot, outlier diagnostic, and actual-vs-predicted plot.\n"
 project_card_md += "- Interactive date filter included: Yes\n\n"
-
 project_card_md += "## Methodology and Reproducibility\n"
 project_card_md += "The project uses a local sample CSV, fixed feature engineering steps, an 80/20 time-based split, and fixed random_state values where applicable.\n\n"
-
 project_card_md += "## Insights\n"
 project_card_md += str(insights_text) + "\n\n"
-
 project_card_md += "## Limitations and Future Work\n"
 project_card_md += "The current model uses basic machine-learning methods and engineered time features. Future work could compare more advanced forecasting models and test different forecast horizons.\n"
-st.subheader("project_card.md preview")
-st.markdown(project_card_md)
-
-st.download_button(
-    label="Download project_card.md",
-    data=project_card_md,
-    file_name="project_card.md",
-    mime="text/markdown",
-    key="download_project_card_md_section8_fixed"
-)
-
-## Features Used
-- lag_1
-- lag_24
-- rolling_mean_24
-- hour
-- weekend
-- month
-
-project_card_lines = []
-
-project_card_lines.append(f"# Project B: {project_title_export}")
-project_card_lines.append("")
-project_card_lines.append("## Student")
-project_card_lines.append(f"- Name: {student_name_export}")
-project_card_lines.append(f"- Student ID: {student_id_export}")
-project_card_lines.append("")
-project_card_lines.append("## Goal")
-project_card_lines.append(str(project_goal_export))
-project_card_lines.append("")
-project_card_lines.append("## Dataset")
-project_card_lines.append(f"- Rows: {dataset_rows}")
-project_card_lines.append(f"- Timestamp column: `{timestamp_used}`")
-project_card_lines.append(f"- Target column: `{target_used}`")
-project_card_lines.append(f"- Resampling rule: {resample_rule}")
-project_card_lines.append(f"- Forecast horizon: {horizon}")
-project_card_lines.append("")
-project_card_lines.append("## Data Integrity")
-project_card_lines.append("- Missing values checked: Yes")
-project_card_lines.append("- Timestamps parsed and sorted: Yes")
-project_card_lines.append("- Missing timestamp discussion: Included")
-project_card_lines.append("- Outlier discussion: Included")
-project_card_lines.append("- Resampling discussion: Included")
-project_card_lines.append("")
-project_card_lines.append("## Features Used")
-project_card_lines.append("Baseline features:")
-project_card_lines.append("- lag_1")
-project_card_lines.append("- lag_24")
-project_card_lines.append("- rolling_mean_24")
-project_card_lines.append("- hour")
-project_card_lines.append("- weekend")
-project_card_lines.append("- month")
-project_card_lines.append("")
-project_card_lines.append("Advanced features:")
-project_card_lines.append("- hour_sin")
-project_card_lines.append("- hour_cos")
-project_card_lines.append("- month_sin")
-project_card_lines.append("- month_cos")
-project_card_lines.append("- lag_difference_24_1")
-project_card_lines.append("")
-project_card_lines.append("## Modeling")
-project_card_lines.append(f"- Metrics table created: {has_metrics_table}")
-project_card_lines.append(f"- Time-based split used: {has_metrics_table}")
-project_card_lines.append(f"- Predictions created: {has_predictions}")
-project_card_lines.append("- Models compared: Naive Mean Baseline, Ridge Regression, Random Forest")
-project_card_lines.append("")
-project_card_lines.append("## Dashboard")
-project_card_lines.append(f"- Dashboard plots created: {bool(has_dashboard_plots)}")
-project_card_lines.append("- Visuals include KPI cards, daily trend, hourly profile, monthly profile, weekday profile, distribution plot, outlier diagnostic, and actual-vs-predicted plot.")
-project_card_lines.append("- Interactive date filter included: Yes")
-project_card_lines.append("")
-project_card_lines.append("## Methodology and Reproducibility")
-project_card_lines.append("The project uses a local sample CSV, fixed feature engineering steps, an 80/20 time-based split, and fixed random_state values where applicable.")
-project_card_lines.append("")
-project_card_lines.append("## Insights")
-project_card_lines.append(str(insights_text))
-project_card_lines.append("")
-project_card_lines.append("## Limitations and Future Work")
-project_card_lines.append("The current model uses basic machine-learning methods and engineered time features. Future work could compare more advanced forecasting models and test different forecast horizons.")
-
-project_card_md = "\n".join(project_card_lines)
 
 st.subheader("project_card.md preview")
 st.markdown(project_card_md)
@@ -1132,54 +988,8 @@ st.download_button(
     data=project_card_md,
     file_name="project_card.md",
     mime="text/markdown",
-    key="download_project_card_md_section8"
+    key="download_project_card_md_section8_clean"
 )
-
-
-# Evidence flag for export/grading
-has_dashboard_plots = True
-st.subheader("8. Export submission files")
-evidence = build_submission_json(
-    student_name,
-    student_id,
-    app_url,
-    repo_url,
-    project_title,
-    project_goal,
-    data_path,
-    df,
-    cleaned_df,
-    model_table,
-    timestamp_col,
-    target_col,
-    int(horizon),
-    resampling_choice,
-    results_df,
-    insights_text,
-)
- 
-evidence_json_text = json.dumps(evidence, indent=2)
-project_card_text = build_project_card(evidence)
- 
-col_a, col_b = st.columns(2)
-with col_a:
-    st.download_button(
-        "Download submission.json",
-        data=evidence_json_text,
-        file_name="submission.json",
-        mime="application/json",
-    )
-with col_b:
-    st.download_button(
-        "Download project_card.md",
-        data=project_card_text,
-        file_name="project_card.md",
-        mime="text/markdown",
-    )
- 
-with st.expander("Preview submission.json"):
-    st.json(evidence)
- 
 st.subheader("9. AI grader out of 80")
 st.warning("The AI grader uses the fixed /80 rubric. Peer score out of 20 is handled separately by instructors.")
  
