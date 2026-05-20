@@ -423,6 +423,113 @@ st.code(
 )
 
 results_df = None
+# ===============================
+# 6. STUDENT ADDITIONS — MODELING
+# ===============================
+
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+import numpy as np
+import pandas as pd
+
+st.subheader("6. Modeling: Solar Irradiance Forecasting")
+
+# Copy dataset
+model_df = df.copy()
+
+# Make sure timestamp is datetime
+model_df["timestamp"] = pd.to_datetime(model_df["timestamp"])
+model_df = model_df.sort_values("timestamp")
+
+# Target column
+target_col = "ALLSKY_SFC_SW_DWN_Wh_m2"
+
+# Time-based features
+model_df["hour"] = model_df["timestamp"].dt.hour
+model_df["day"] = model_df["timestamp"].dt.day
+model_df["month"] = model_df["timestamp"].dt.month
+model_df["dayofweek"] = model_df["timestamp"].dt.dayofweek
+
+# Lag features for forecasting
+model_df["lag_1"] = model_df[target_col].shift(1)
+model_df["lag_24"] = model_df[target_col].shift(24)
+model_df["rolling_24"] = model_df[target_col].rolling(window=24).mean()
+
+# Remove missing values caused by lag/rolling features
+model_df = model_df.dropna()
+
+# Feature columns
+feature_cols = [
+    "hour",
+    "day",
+    "month",
+    "dayofweek",
+    "T2M_C",
+    "WS10M_m_s",
+    "lag_1",
+    "lag_24",
+    "rolling_24"
+]
+
+X = model_df[feature_cols]
+y = model_df[target_col]
+
+# Time-based train/test split
+# First 80% = training, last 20% = testing
+split_index = int(len(model_df) * 0.8)
+
+X_train = X.iloc[:split_index]
+X_test = X.iloc[split_index:]
+
+y_train = y.iloc[:split_index]
+y_test = y.iloc[split_index:]
+
+test_timestamps = model_df["timestamp"].iloc[split_index:]
+
+# Train forecasting model
+model = RandomForestRegressor(
+    n_estimators=100,
+    random_state=42,
+    max_depth=10
+)
+
+model.fit(X_train, y_train)
+
+# Make predictions
+y_pred = model.predict(X_test)
+
+# Evaluation metrics
+MAE = mean_absolute_error(y_test, y_pred)
+RMSE = np.sqrt(mean_squared_error(y_test, y_pred))
+
+# MAPE calculation avoiding division by zero
+MAPE = np.mean(
+    np.abs((y_test - y_pred) / np.where(y_test == 0, np.nan, y_test))
+) * 100
+
+# Required metrics table
+results_df = pd.DataFrame([
+    {
+        "model": "Random Forest Regressor",
+        "MAE": MAE,
+        "RMSE": RMSE,
+        "MAPE": MAPE
+    }
+])
+
+# Save predictions for dashboard section
+predictions_df = pd.DataFrame({
+    "timestamp": test_timestamps.values,
+    "Actual": y_test.values,
+    "Predicted": y_pred
+})
+
+# Display results
+st.write("### Model Performance Results")
+st.dataframe(results_df)
+
+st.write("### Prediction Preview")
+st.dataframe(predictions_df.head())
 
 st.subheader("7. STUDENT ADDITIONS — DASHBOARD")
 st.info("Add extra plots, KPIs, and written insights under this marker.")
@@ -442,7 +549,55 @@ insights_text = st.text_area(
     height=120,
     help="After adding your model/dashboard, summarize your findings here.",
 )
+# ===============================
+# 7. STUDENT ADDITIONS — DASHBOARD
+# ===============================
 
+st.subheader("7. Dashboard: Forecasting Results and Insights")
+
+# KPI cards
+best_model = results_df.sort_values("RMSE").iloc[0]
+
+col1, col2, col3, col4 = st.columns(4)
+
+col1.metric("Best Model", best_model["model"])
+col2.metric("MAE", f"{best_model['MAE']:.2f}")
+col3.metric("RMSE", f"{best_model['RMSE']:.2f}")
+col4.metric("MAPE", f"{best_model['MAPE']:.2f}%")
+
+# Actual vs Predicted plot
+st.write("### Actual vs Predicted Solar Irradiance")
+
+chart_df = predictions_df.set_index("timestamp")[["Actual", "Predicted"]]
+
+st.line_chart(chart_df)
+
+# Scatter plot
+st.write("### Forecast Accuracy Scatter Plot")
+
+scatter_df = predictions_df[["Actual", "Predicted"]]
+st.scatter_chart(scatter_df, x="Actual", y="Predicted")
+
+# Error calculation
+predictions_df["Error"] = predictions_df["Actual"] - predictions_df["Predicted"]
+predictions_df["Absolute_Error"] = abs(predictions_df["Error"])
+
+st.write("### Forecast Error Over Time")
+error_chart = predictions_df.set_index("timestamp")[["Absolute_Error"]]
+st.line_chart(error_chart)
+
+# Written insights
+st.write("### Key Insights")
+
+st.markdown(f"""
+- The forecasting model used a **time-based split**, where the first 80% of the data was used for training and the final 20% was used for testing.
+- The selected target variable was **ALLSKY_SFC_SW_DWN_Wh_m2**, which represents solar irradiance.
+- The model used time features such as hour, day, month, and day of week, together with lag features.
+- The best model was **{best_model['model']}**.
+- The model achieved an RMSE of **{best_model['RMSE']:.2f}**, which shows the average size of forecasting error.
+- Solar irradiance is strongly affected by the time of day, with low values at night and higher values during daylight hours.
+- Forecasting errors are expected to be higher during sunrise, sunset, and variable weather conditions.
+""")
 st.subheader("8. Export submission files")
 evidence = build_submission_json(
     student_name,
