@@ -1077,7 +1077,7 @@ st.download_button(
 
 ## Limitations and Future Work
 The current model uses basic machine-learning methods and engineered time features. Future work could compare more advanced forecasting models and test different forecast horizons.
-"""
+
 
 st.subheader("project_card.md preview")
 st.markdown(project_card_md)
