@@ -1006,43 +1006,68 @@ project_card_md = "\n".join([
     "- Outlier discussion: Included",
     "- Resampling discussion: Included",
     "",
-    "## Features Used",
-    "Baseline features:",
-    "- lag_1",
-    "- lag_24",
-    "- rolling_mean_24",
-    "- hour",
-    "- weekend",
-    "- month",
-    "",
-    "Advanced features:",
-    "- hour_sin",
-    "- hour_cos",
-    "- month_sin",
-    "- month_cos",
-    "- lag_difference_24_1",
-    "",
-    "## Modeling",
-    f"- Metrics table created: {has_metrics_table}",
-    f"- Time-based split used: {has_metrics_table}",
-    f"- Predictions created: {has_predictions}",
-    "- Models compared: Naive Mean Baseline, Ridge Regression, Random Forest",
-    "",
-    "## Dashboard",
-    f"- Dashboard plots created: {bool(has_dashboard_plots)}",
-    "- Visuals include KPI cards, daily trend, hourly profile, monthly profile, weekday profile, distribution plot, outlier diagnostic, and actual-vs-predicted plot.",
-    "- Interactive date filter included: Yes",
-    "",
-    "## Methodology and Reproducibility",
-    "The project uses a local sample CSV, fixed feature engineering steps, an 80/20 time-based split, and fixed random_state values where applicable.",
-    "",
-    "## Insights",
-    str(insights_text),
-    "",
-    "## Limitations and Future Work",
-    "The current model uses basic machine-learning methods and engineered time features. Future work could compare more advanced forecasting models and test different forecast horizons.",
-    ""
-])
+  project_card_lines = []
+
+project_card_lines.append(f"# Project B: {project_title_export}")
+project_card_lines.append("")
+project_card_lines.append("## Student")
+project_card_lines.append(f"- Name: {student_name_export}")
+project_card_lines.append(f"- Student ID: {student_id_export}")
+project_card_lines.append("")
+project_card_lines.append("## Goal")
+project_card_lines.append(str(project_goal_export))
+project_card_lines.append("")
+project_card_lines.append("## Dataset")
+project_card_lines.append(f"- Rows: {dataset_rows}")
+project_card_lines.append(f"- Timestamp column: `{timestamp_used}`")
+project_card_lines.append(f"- Target column: `{target_used}`")
+project_card_lines.append(f"- Resampling rule: {resample_rule}")
+project_card_lines.append(f"- Forecast horizon: {horizon}")
+project_card_lines.append("")
+project_card_lines.append("## Data Integrity")
+project_card_lines.append("- Missing values checked: Yes")
+project_card_lines.append("- Timestamps parsed and sorted: Yes")
+project_card_lines.append("- Missing timestamp discussion: Included")
+project_card_lines.append("- Outlier discussion: Included")
+project_card_lines.append("- Resampling discussion: Included")
+project_card_lines.append("")
+project_card_lines.append("## Features Used")
+project_card_lines.append("Baseline features:")
+project_card_lines.append("- lag_1")
+project_card_lines.append("- lag_24")
+project_card_lines.append("- rolling_mean_24")
+project_card_lines.append("- hour")
+project_card_lines.append("- weekend")
+project_card_lines.append("- month")
+project_card_lines.append("")
+project_card_lines.append("Advanced features:")
+project_card_lines.append("- hour_sin")
+project_card_lines.append("- hour_cos")
+project_card_lines.append("- month_sin")
+project_card_lines.append("- month_cos")
+project_card_lines.append("- lag_difference_24_1")
+project_card_lines.append("")
+project_card_lines.append("## Modeling")
+project_card_lines.append(f"- Metrics table created: {has_metrics_table}")
+project_card_lines.append(f"- Time-based split used: {has_metrics_table}")
+project_card_lines.append(f"- Predictions created: {has_predictions}")
+project_card_lines.append("- Models compared: Naive Mean Baseline, Ridge Regression, Random Forest")
+project_card_lines.append("")
+project_card_lines.append("## Dashboard")
+project_card_lines.append(f"- Dashboard plots created: {bool(has_dashboard_plots)}")
+project_card_lines.append("- Visuals include KPI cards, daily trend, hourly profile, monthly profile, weekday profile, distribution plot, outlier diagnostic, and actual-vs-predicted plot.")
+project_card_lines.append("- Interactive date filter included: Yes")
+project_card_lines.append("")
+project_card_lines.append("## Methodology and Reproducibility")
+project_card_lines.append("The project uses a local sample CSV, fixed feature engineering steps, an 80/20 time-based split, and fixed random_state values where applicable.")
+project_card_lines.append("")
+project_card_lines.append("## Insights")
+project_card_lines.append(str(insights_text))
+project_card_lines.append("")
+project_card_lines.append("## Limitations and Future Work")
+project_card_lines.append("The current model uses basic machine-learning methods and engineered time features. Future work could compare more advanced forecasting models and test different forecast horizons.")
+
+project_card_md = "\n".join(project_card_lines)
 
 st.subheader("project_card.md preview")
 st.markdown(project_card_md)
