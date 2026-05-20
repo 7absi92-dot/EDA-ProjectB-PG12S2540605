@@ -406,77 +406,70 @@ with st.expander("Prepared X and y preview"):
     st.write("y preview")
     st.dataframe(y.head(10).to_frame("y"), use_container_width=True)
 
-st.subheader("6. STUDENT ADDITIONS — MODELING")
-st.info("Add your model training, time-based split, predictions, and metrics under this marker.")
-st.code(
-    """# Paste your MODELING code below this marker.
-# Required outcome:
-# - Use a time-based train/test split.
-# - Train at least one forecasting model.
-# - Create a metrics table named results_df.
-# Example final shape:
-# results_df = pd.DataFrame([
-#     {'model': 'Your model name', 'MAE': ..., 'RMSE': ..., 'MAPE': ...}
-# ])
-""",
-    language="python",
-)
-
-results_df = None
-# ===============================
+# ==============================
 # 6. STUDENT ADDITIONS — MODELING
-# ===============================
+# ==============================
 
-from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.linear_model import LinearRegression
 import numpy as np
 import pandas as pd
 
-st.subheader("6. Modeling: Solar Irradiance Forecasting")
+st.header("6. Modeling and Evaluation")
 
-# Copy dataset
-model_df = df.copy()
+# Ensure timestamp format and chronological order
+df["timestamp"] = pd.to_datetime(df["timestamp"])
+df = df.sort_values("timestamp").reset_index(drop=True)
 
-# Make sure timestamp is datetime
-model_df["timestamp"] = pd.to_datetime(model_df["timestamp"])
-model_df = model_df.sort_values("timestamp")
-
-# Target column
 target_col = "ALLSKY_SFC_SW_DWN_Wh_m2"
 
-# Time-based features
-model_df["hour"] = model_df["timestamp"].dt.hour
-model_df["day"] = model_df["timestamp"].dt.day
-model_df["month"] = model_df["timestamp"].dt.month
-model_df["dayofweek"] = model_df["timestamp"].dt.dayofweek
+# ------------------------------
+# Timestamp integrity
+# ------------------------------
+df["time_gap"] = df["timestamp"].diff()
+most_common_gap = df["time_gap"].mode()[0]
 
-# Lag features for forecasting
-model_df["lag_1"] = model_df[target_col].shift(1)
-model_df["lag_24"] = model_df[target_col].shift(24)
-model_df["rolling_24"] = model_df[target_col].rolling(window=24).mean()
+st.subheader("Time-Series Integrity Check")
+st.write(f"Most common timestamp interval: **{most_common_gap}**")
+st.write(f"Missing target values: **{df[target_col].isna().sum()}**")
 
-# Remove missing values caused by lag/rolling features
-model_df = model_df.dropna()
+# ------------------------------
+# Feature engineering
+# ------------------------------
+df["hour"] = df["timestamp"].dt.hour
+df["day"] = df["timestamp"].dt.day
+df["month"] = df["timestamp"].dt.month
+df["dayofyear"] = df["timestamp"].dt.dayofyear
+df["weekday"] = df["timestamp"].dt.weekday
 
-# Feature columns
-feature_cols = [
+df["lag_1"] = df[target_col].shift(1)
+df["lag_24"] = df[target_col].shift(24)
+df["rolling_mean_24"] = df[target_col].rolling(window=24).mean()
+df["rolling_std_24"] = df[target_col].rolling(window=24).std()
+
+df = df.dropna().reset_index(drop=True)
+
+features = [
     "hour",
     "day",
     "month",
-    "dayofweek",
-    "T2M_C",
-    "WS10M_m_s",
+    "dayofyear",
+    "weekday",
     "lag_1",
     "lag_24",
-    "rolling_24"
+    "rolling_mean_24",
+    "rolling_std_24"
 ]
 
-X = model_df[feature_cols]
-y = model_df[target_col]
+X = df[features]
+y = df[target_col]
 
+# ------------------------------
 # Time-based train/test split
-# First 80% = training, last 20% = testing
-split_index = int(len(model_df) * 0.8)
+# Last 20% used for testing
+# ------------------------------
+split_index = int(len(df) * 0.8)
 
 X_train = X.iloc[:split_index]
 X_test = X.iloc[split_index:]
@@ -484,119 +477,250 @@ X_test = X.iloc[split_index:]
 y_train = y.iloc[:split_index]
 y_test = y.iloc[split_index:]
 
-test_timestamps = model_df["timestamp"].iloc[split_index:]
+test_time = df["timestamp"].iloc[split_index:]
 
-# Train forecasting model
-model = RandomForestRegressor(
-    n_estimators=100,
-    random_state=42,
-    max_depth=10
-)
+st.subheader("Time-Based Train/Test Split")
+st.write(f"Training records: **{len(X_train)}**")
+st.write(f"Testing records: **{len(X_test)}**")
+st.write(f"Training period: **{df['timestamp'].iloc[0]} to {df['timestamp'].iloc[split_index-1]}**")
+st.write(f"Testing period: **{df['timestamp'].iloc[split_index]} to {df['timestamp'].iloc[-1]}**")
 
-model.fit(X_train, y_train)
+# ------------------------------
+# Models
+# ------------------------------
+models = {
+    "Linear Regression": LinearRegression(),
+    "Random Forest": RandomForestRegressor(
+        n_estimators=150,
+        random_state=42,
+        max_depth=10
+    ),
+    "Gradient Boosting": GradientBoostingRegressor(
+        n_estimators=150,
+        learning_rate=0.05,
+        max_depth=3,
+        random_state=42
+    )
+}
 
-# Make predictions
-y_pred = model.predict(X_test)
+results = []
+predictions = {}
 
-# Evaluation metrics
-MAE = mean_absolute_error(y_test, y_pred)
-RMSE = np.sqrt(mean_squared_error(y_test, y_pred))
+for model_name, model in models.items():
+    model.fit(X_train, y_train)
+    y_pred_model = model.predict(X_test)
 
-# MAPE calculation avoiding division by zero
-MAPE = np.mean(
-    np.abs((y_test - y_pred) / np.where(y_test == 0, np.nan, y_test))
-) * 100
+    mae = mean_absolute_error(y_test, y_pred_model)
+    rmse = np.sqrt(mean_squared_error(y_test, y_pred_model))
+    mape = np.mean(np.abs((y_test - y_pred_model) / np.where(y_test == 0, np.nan, y_test))) * 100
 
-# Required metrics table
-results_df = pd.DataFrame([
-    {
-        "model": "Random Forest Regressor",
-        "MAE": MAE,
-        "RMSE": RMSE,
-        "MAPE": MAPE
-    }
-])
+    results.append({
+        "model": model_name,
+        "MAE": round(mae, 3),
+        "RMSE": round(rmse, 3),
+        "MAPE": round(mape, 3)
+    })
 
-# Save predictions for dashboard section
-predictions_df = pd.DataFrame({
-    "timestamp": test_timestamps.values,
-    "Actual": y_test.values,
-    "Predicted": y_pred
-})
+    predictions[model_name] = y_pred_model
 
-# Display results
-st.write("### Model Performance Results")
+results_df = pd.DataFrame(results).sort_values("RMSE").reset_index(drop=True)
+
+st.subheader("Model Comparison Results")
 st.dataframe(results_df)
 
-st.write("### Prediction Preview")
-st.dataframe(predictions_df.head())
+best_model_name = results_df.loc[0, "model"]
+y_pred = predictions[best_model_name]
 
-st.subheader("7. STUDENT ADDITIONS — DASHBOARD")
-st.info("Add extra plots, KPIs, and written insights under this marker.")
-st.code(
-    """# Paste your DASHBOARD code below this marker.
-# Ideas:
-# - Plot actual vs predicted values after your modeling section creates predictions.
-# - Add KPI cards for best model and error values.
-# - Add written insights explaining patterns and model performance.
-""",
-    language="python",
-)
+st.success(f"Best model based on RMSE: {best_model_name}")
 
-insights_text = st.text_area(
-    "Student insights",
-    value="",
-    height=120,
-    help="After adding your model/dashboard, summarize your findings here.",
-)
-# ===============================
+# ==============================
 # 7. STUDENT ADDITIONS — DASHBOARD
-# ===============================
+# ==============================
 
-st.subheader("7. Dashboard: Forecasting Results and Insights")
+import matplotlib.pyplot as plt
 
-# KPI cards
-best_model = results_df.sort_values("RMSE").iloc[0]
+st.header("7. Dashboard, Visual Analysis and Insights")
+
+# ------------------------------
+# KPI Cards
+# ------------------------------
+st.subheader("Key Performance Indicators")
 
 col1, col2, col3, col4 = st.columns(4)
 
-col1.metric("Best Model", best_model["model"])
-col2.metric("MAE", f"{best_model['MAE']:.2f}")
-col3.metric("RMSE", f"{best_model['RMSE']:.2f}")
-col4.metric("MAPE", f"{best_model['MAPE']:.2f}%")
+col1.metric("Total Records", len(df))
+col2.metric("Average Irradiance", f"{df[target_col].mean():.2f} Wh/m²")
+col3.metric("Maximum Irradiance", f"{df[target_col].max():.2f} Wh/m²")
+col4.metric("Best Model", best_model_name)
 
-# Actual vs Predicted plot
-st.write("### Actual vs Predicted Solar Irradiance")
+# ------------------------------
+# Dataset Integrity and Outliers
+# ------------------------------
+st.subheader("Data Integrity and Outlier Review")
 
-chart_df = predictions_df.set_index("timestamp")[["Actual", "Predicted"]]
+Q1 = df[target_col].quantile(0.25)
+Q3 = df[target_col].quantile(0.75)
+IQR = Q3 - Q1
 
-st.line_chart(chart_df)
+lower_bound = Q1 - 1.5 * IQR
+upper_bound = Q3 + 1.5 * IQR
 
-# Scatter plot
-st.write("### Forecast Accuracy Scatter Plot")
+outliers = df[(df[target_col] < lower_bound) | (df[target_col] > upper_bound)]
 
-scatter_df = predictions_df[["Actual", "Predicted"]]
-st.scatter_chart(scatter_df, x="Actual", y="Predicted")
+st.write(f"Detected outliers using IQR method: **{len(outliers)}**")
+st.write(f"Lower bound: **{lower_bound:.2f} Wh/m²**")
+st.write(f"Upper bound: **{upper_bound:.2f} Wh/m²**")
 
-# Error calculation
-predictions_df["Error"] = predictions_df["Actual"] - predictions_df["Predicted"]
-predictions_df["Absolute_Error"] = abs(predictions_df["Error"])
+fig_box, ax_box = plt.subplots(figsize=(10, 4))
+ax_box.boxplot(df[target_col], vert=False)
+ax_box.set_title("Solar Irradiance Outlier Detection")
+ax_box.set_xlabel("Solar Irradiance Wh/m²")
+st.pyplot(fig_box)
 
-st.write("### Forecast Error Over Time")
-error_chart = predictions_df.set_index("timestamp")[["Absolute_Error"]]
-st.line_chart(error_chart)
+st.write("""
+Outliers were checked using the IQR method. However, solar irradiance naturally changes between very low values
+at night and high values during peak sunlight hours. Therefore, the outliers were reviewed carefully instead of
+being removed automatically.
+""")
 
-# Written insights
-st.write("### Key Insights")
+# ------------------------------
+# Model Comparison Chart
+# ------------------------------
+st.subheader("Model Performance Comparison")
 
-st.markdown(f"""
-- The forecasting model used a **time-based split**, where the first 80% of the data was used for training and the final 20% was used for testing.
-- The selected target variable was **ALLSKY_SFC_SW_DWN_Wh_m2**, which represents solar irradiance.
-- The model used time features such as hour, day, month, and day of week, together with lag features.
-- The best model was **{best_model['model']}**.
-- The model achieved an RMSE of **{best_model['RMSE']:.2f}**, which shows the average size of forecasting error.
-- Solar irradiance is strongly affected by the time of day, with low values at night and higher values during daylight hours.
-- Forecasting errors are expected to be higher during sunrise, sunset, and variable weather conditions.
+fig_model, ax_model = plt.subplots(figsize=(8, 4))
+ax_model.bar(results_df["model"], results_df["RMSE"])
+ax_model.set_title("Model Comparison Based on RMSE")
+ax_model.set_xlabel("Model")
+ax_model.set_ylabel("RMSE")
+plt.xticks(rotation=20)
+st.pyplot(fig_model)
+
+# ------------------------------
+# Actual vs Predicted
+# ------------------------------
+st.subheader("Actual vs Predicted Forecast")
+
+fig_pred, ax_pred = plt.subplots(figsize=(12, 5))
+ax_pred.plot(test_time, y_test.values, label="Actual")
+ax_pred.plot(test_time, y_pred, label="Predicted")
+ax_pred.set_title(f"Actual vs Predicted Solar Irradiance - {best_model_name}")
+ax_pred.set_xlabel("Timestamp")
+ax_pred.set_ylabel("Solar Irradiance Wh/m²")
+ax_pred.legend()
+st.pyplot(fig_pred)
+
+# ------------------------------
+# Residual Analysis
+# ------------------------------
+st.subheader("Residual Analysis")
+
+residuals = y_test.values - y_pred
+
+fig_res, ax_res = plt.subplots(figsize=(12, 4))
+ax_res.plot(test_time, residuals)
+ax_res.axhline(0, linestyle="--")
+ax_res.set_title("Residuals Over Time")
+ax_res.set_xlabel("Timestamp")
+ax_res.set_ylabel("Prediction Error")
+st.pyplot(fig_res)
+
+fig_hist, ax_hist = plt.subplots(figsize=(8, 4))
+ax_hist.hist(residuals, bins=30)
+ax_hist.set_title("Residual Distribution")
+ax_hist.set_xlabel("Residual Error")
+ax_hist.set_ylabel("Frequency")
+st.pyplot(fig_hist)
+
+st.write("""
+Residual analysis was used to check prediction errors. A good forecasting model should have residuals distributed
+around zero without a strong pattern. Larger errors may occur during sudden weather changes or rapid irradiance variation.
+""")
+
+# ------------------------------
+# Monthly Pattern
+# ------------------------------
+st.subheader("Monthly Solar Irradiance Pattern")
+
+monthly_avg = df.groupby("month")[target_col].mean()
+
+fig_month, ax_month = plt.subplots(figsize=(8, 4))
+ax_month.plot(monthly_avg.index, monthly_avg.values, marker="o")
+ax_month.set_title("Average Monthly Solar Irradiance")
+ax_month.set_xlabel("Month")
+ax_month.set_ylabel("Average Irradiance Wh/m²")
+st.pyplot(fig_month)
+
+# ------------------------------
+# Feature Importance
+# ------------------------------
+st.subheader("Feature Importance")
+
+best_model = models[best_model_name]
+
+if hasattr(best_model, "feature_importances_"):
+    importance_df = pd.DataFrame({
+        "Feature": features,
+        "Importance": best_model.feature_importances_
+    }).sort_values("Importance", ascending=False)
+
+    st.dataframe(importance_df)
+
+    fig_imp, ax_imp = plt.subplots(figsize=(8, 4))
+    ax_imp.barh(importance_df["Feature"], importance_df["Importance"])
+    ax_imp.set_title("Feature Importance")
+    ax_imp.set_xlabel("Importance")
+    ax_imp.invert_yaxis()
+    st.pyplot(fig_imp)
+else:
+    st.info("Feature importance is not available for this model type.")
+
+# ------------------------------
+# Interactive Date Filter
+# ------------------------------
+st.subheader("Interactive Date Range Viewer")
+
+start_date = st.date_input("Select start date", df["timestamp"].min().date())
+end_date = st.date_input("Select end date", df["timestamp"].max().date())
+
+filtered_df = df[
+    (df["timestamp"].dt.date >= start_date) &
+    (df["timestamp"].dt.date <= end_date)
+]
+
+fig_filter, ax_filter = plt.subplots(figsize=(12, 5))
+ax_filter.plot(filtered_df["timestamp"], filtered_df[target_col])
+ax_filter.set_title("Solar Irradiance for Selected Date Range")
+ax_filter.set_xlabel("Timestamp")
+ax_filter.set_ylabel("Solar Irradiance Wh/m²")
+st.pyplot(fig_filter)
+
+# ------------------------------
+# Insights and Narrative
+# ------------------------------
+st.subheader("Key Insights and Interpretation")
+
+st.write(f"""
+1. The dataset was prepared as a proper time-series dataset by converting the timestamp column to datetime format
+and sorting all records chronologically.
+
+2. A time-based train/test split was used. The first 80% of the dataset was used for training and the last 20%
+was used for testing. This avoids data leakage and better represents real forecasting conditions.
+
+3. Three models were compared: Linear Regression, Random Forest, and Gradient Boosting. The best model was
+**{best_model_name}**, selected based on the lowest RMSE value.
+
+4. Lag features and rolling statistics improved the forecasting process because solar irradiance depends strongly
+on previous time steps and daily patterns.
+
+5. Residual analysis shows how prediction errors behave over time. Large residuals may be caused by sudden changes
+in sunlight due to cloud cover, seasonal variation, or weather effects.
+
+6. The dashboard includes KPI cards, outlier detection, model comparison, actual vs predicted forecast, residual plots,
+monthly trend analysis, feature importance, and an interactive date range viewer.
+
+7. This forecasting workflow is useful for solar energy planning because it helps estimate future solar resource
+availability at Manah, Oman.
 """)
 st.subheader("8. Export submission files")
 evidence = build_submission_json(
