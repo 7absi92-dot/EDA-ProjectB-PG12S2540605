@@ -432,7 +432,33 @@ else:
 
     st.write(f"Training rows: {len(X_train)}")
     st.write(f"Testing rows: {len(X_test)}")
+# Advanced feature engineering beyond the baseline starter features
+X_train = X_train.copy()
+X_test = X_test.copy()
 
+if "hour" in X_train.columns:
+    X_train["hour_sin"] = np.sin(2 * np.pi * X_train["hour"] / 24)
+    X_train["hour_cos"] = np.cos(2 * np.pi * X_train["hour"] / 24)
+    X_test["hour_sin"] = np.sin(2 * np.pi * X_test["hour"] / 24)
+    X_test["hour_cos"] = np.cos(2 * np.pi * X_test["hour"] / 24)
+
+if "month" in X_train.columns:
+    X_train["month_sin"] = np.sin(2 * np.pi * X_train["month"] / 12)
+    X_train["month_cos"] = np.cos(2 * np.pi * X_train["month"] / 12)
+    X_test["month_sin"] = np.sin(2 * np.pi * X_test["month"] / 12)
+    X_test["month_cos"] = np.cos(2 * np.pi * X_test["month"] / 12)
+
+if "lag_1" in X_train.columns and "lag_24" in X_train.columns:
+    X_train["lag_difference_24_1"] = X_train["lag_24"] - X_train["lag_1"]
+    X_test["lag_difference_24_1"] = X_test["lag_24"] - X_test["lag_1"]
+
+advanced_features_used = [
+    "hour_sin",
+    "hour_cos",
+    "month_sin",
+    "month_cos",
+    "lag_difference_24_1"
+]
     models = {
         "Naive Mean Baseline": DummyRegressor(strategy="mean"),
         "Ridge Regression": Ridge(alpha=1.0),
@@ -755,6 +781,7 @@ else:
     st.info(
         "Prediction dashboard will appear after the modeling section creates a non-empty predictions_df."
     )
+  
 
 # ==============================
 # 8. Export submission files
@@ -777,9 +804,14 @@ if "has_dashboard_plots" not in globals():
 
 if "insights_text" not in globals():
     insights_text = (
-        "The project includes dataset auditing, timestamp and target selection, "
-        "baseline feature engineering, time-based model evaluation, and dashboard visuals. "
-        "The dashboard discusses hourly, daily, and monthly solar irradiance patterns."
+      "Methodology: The dataset was loaded from the local sample CSV, audited for missing values, "
+    "then cleaned by parsing timestamps, converting the target to numeric values, sorting by time, "
+    "and preparing lag, rolling, calendar, and cyclic time features. "
+    "A time-based 80/20 train/test split was used so the model is evaluated on later unseen observations. "
+    "Dashboard visuals examine daily trends, hourly patterns, monthly seasonality, distribution, outliers, "
+    "and actual-versus-predicted performance. "
+    "Reproducibility: The project runs from app.py using data/dataset_sample.csv, fixed random_state values, "
+    "and downloadable submission.json and project_card.md files."
     )
 
 if "horizon" not in globals():
@@ -863,18 +895,37 @@ submission = {
         "timestamps_parsed": True,
         "data_sorted_by_time": True,
         "resampling_discussed": True,
-        "outliers_discussed": True
+        "outliers_discussed": True,
+      "missing_timestamp_discussion": (
+    "Timestamps were parsed using pandas datetime conversion. "
+    "Rows with invalid timestamps were removed during cleaning. "
+    "The timestamp range and ordering were checked before feature creation."
+),
+"outlier_discussion": (
+    "Outliers were reviewed using an IQR-based diagnostic in the dashboard. "
+    "Solar irradiance has natural zero values overnight, so outliers were discussed rather than automatically deleted."
+),
+"resampling_discussion": (
+    "The app includes optional resampling before forecasting. "
+    "For this hourly NASA POWER dataset, hourly resolution is appropriate because the target changes strongly by hour."
+),
     },
     "feature_engineering_evidence": {
         "baseline_features_created": True,
         "features": [
-            "lag_1",
-            "lag_24",
-            "rolling_mean_24",
-            "hour",
-            "weekend",
-            "month"
-        ],
+    "lag_1",
+    "lag_24",
+    "rolling_mean_24",
+    "hour",
+    "weekend",
+    "month",
+    "hour_sin",
+    "hour_cos",
+    "month_sin",
+    "month_cos",
+    "lag_difference_24_1"
+],
+"advanced_features_used": advanced_features_used if "advanced_features_used" in globals() else [],
         "y_target_shifted_by_horizon": True
     },
     "modeling_evidence": {
@@ -973,7 +1024,84 @@ st.download_button(
     key="download_project_card_md_section8"
 )
 
+# ==============================
+# Extra dashboard interactivity and visuals
+# ==============================
 
+st.subheader("Interactive Dashboard Filters")
+
+min_date = dashboard_df[timestamp_col].min().date()
+max_date = dashboard_df[timestamp_col].max().date()
+
+selected_date_range = st.date_input(
+    "Select date range for dashboard",
+    value=(min_date, max_date),
+    min_value=min_date,
+    max_value=max_date,
+    key="dashboard_date_range_filter"
+)
+
+if isinstance(selected_date_range, tuple) and len(selected_date_range) == 2:
+    start_date, end_date = selected_date_range
+    filtered_dashboard_df = dashboard_df[
+        (dashboard_df[timestamp_col].dt.date >= start_date) &
+        (dashboard_df[timestamp_col].dt.date <= end_date)
+    ].copy()
+else:
+    filtered_dashboard_df = dashboard_df.copy()
+
+st.write(f"Filtered dashboard rows: {len(filtered_dashboard_df)}")
+
+st.subheader("Irradiance Distribution")
+
+fig, ax = plt.subplots(figsize=(10, 4))
+ax.hist(filtered_dashboard_df[target_col].dropna(), bins=40)
+ax.set_title("Distribution of Solar Irradiance")
+ax.set_xlabel(target_col)
+ax.set_ylabel("Frequency")
+st.pyplot(fig)
+
+st.subheader("Temperature vs Solar Irradiance")
+
+if "T2M_C" in filtered_dashboard_df.columns:
+    fig, ax = plt.subplots(figsize=(10, 4))
+    ax.scatter(
+        filtered_dashboard_df["T2M_C"],
+        filtered_dashboard_df[target_col],
+        alpha=0.3
+    )
+    ax.set_title("Temperature vs Solar Irradiance")
+    ax.set_xlabel("Temperature (C)")
+    ax.set_ylabel(target_col)
+    st.pyplot(fig)
+
+    st.write(
+        "Insight: This scatter plot checks whether higher temperature periods are associated "
+        "with higher solar irradiance. It adds an extra weather-based interpretation beyond time features."
+    )
+else:
+    st.info("Temperature column T2M_C was not found, so the scatter plot is skipped.")
+
+st.subheader("Outlier Check")
+
+q1 = filtered_dashboard_df[target_col].quantile(0.25)
+q3 = filtered_dashboard_df[target_col].quantile(0.75)
+iqr = q3 - q1
+lower_bound = q1 - 1.5 * iqr
+upper_bound = q3 + 1.5 * iqr
+
+outlier_count = int(
+    (
+        (filtered_dashboard_df[target_col] < lower_bound) |
+        (filtered_dashboard_df[target_col] > upper_bound)
+    ).sum()
+)
+
+st.write(f"Potential outliers by IQR rule: {outlier_count}")
+st.write(
+    "Outlier note: Solar irradiance naturally has many zero values at night. "
+    "The IQR check is used as a diagnostic only, not automatic deletion."
+)
 # Evidence flag for export/grading
 has_dashboard_plots = True
 st.subheader("8. Export submission files")
