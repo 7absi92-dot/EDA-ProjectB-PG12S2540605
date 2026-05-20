@@ -916,7 +916,7 @@ submission = {
         "reproducibility_notes": "The app runs from one app.py file using data/dataset_sample.csv. Random Forest uses random_state=42. The app exports submission.json and project_card.md.",
         "limitations": "The current models are basic machine-learning models. Future work could compare additional forecasting methods and forecast horizons."
     }
-}
+
 
 submission_json = json.dumps(submission, indent=2, default=str)
 
