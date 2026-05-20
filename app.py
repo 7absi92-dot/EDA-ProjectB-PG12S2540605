@@ -518,39 +518,74 @@ else:
     )
 # ==============================
 # STUDENT ADDITIONS — DASHBOARD
-# Paste this under the DASHBOARD marker
 # ==============================
 
 st.subheader("Student Dashboard: Solar Irradiance Insights")
 
-dashboard_df = clean_df.copy()
-dashboard_df[timestamp_col] = pd.to_datetime(dashboard_df[timestamp_col], errors="coerce")
-dashboard_df[target_col] = pd.to_numeric(dashboard_df[target_col], errors="coerce")
-dashboard_df = dashboard_df.dropna(subset=[timestamp_col, target_col]).sort_values(timestamp_col)
+# Safely choose a dataframe that exists in the app
+if "model_df" in globals() and isinstance(model_df, pd.DataFrame):
+    dashboard_df = model_df.copy()
+elif "ts_df" in globals() and isinstance(ts_df, pd.DataFrame):
+    dashboard_df = ts_df.copy()
+elif "df" in globals() and isinstance(df, pd.DataFrame):
+    dashboard_df = df.copy()
+else:
+    st.error("No dataframe found for the dashboard. Check the dataset loading section.")
+    st.stop()
 
+# Safely clean timestamp and target columns for dashboard visuals
+dashboard_df[timestamp_col] = pd.to_datetime(
+    dashboard_df[timestamp_col],
+    errors="coerce"
+)
+
+dashboard_df[target_col] = pd.to_numeric(
+    dashboard_df[target_col],
+    errors="coerce"
+)
+
+dashboard_df = (
+    dashboard_df
+    .dropna(subset=[timestamp_col, target_col])
+    .sort_values(timestamp_col)
+    .copy()
+)
+
+if dashboard_df.empty:
+    st.warning("Dashboard dataframe is empty after cleaning timestamp and target columns.")
+    st.stop()
+
+# Create time-based columns
 dashboard_df["date"] = dashboard_df[timestamp_col].dt.date
 dashboard_df["hour"] = dashboard_df[timestamp_col].dt.hour
 dashboard_df["month"] = dashboard_df[timestamp_col].dt.month
 dashboard_df["day_name"] = dashboard_df[timestamp_col].dt.day_name()
 
-# KPI cards
+# ==============================
+# KPI CARDS
+# ==============================
+
 avg_irradiance = dashboard_df[target_col].mean()
 max_irradiance = dashboard_df[target_col].max()
+min_irradiance = dashboard_df[target_col].min()
 zero_hours_pct = (dashboard_df[target_col] == 0).mean() * 100
 
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
+
 col1.metric("Average Irradiance", f"{avg_irradiance:.2f}")
 col2.metric("Maximum Irradiance", f"{max_irradiance:.2f}")
-col3.metric("Zero-Irradiance Hours", f"{zero_hours_pct:.1f}%")
+col3.metric("Minimum Irradiance", f"{min_irradiance:.2f}")
+col4.metric("Zero-Irradiance Hours", f"{zero_hours_pct:.1f}%")
 
-st.markdown(
-    """
-    These indicators summarize the overall solar resource.  
-    Zero-irradiance hours usually represent night-time periods, which are important for forecasting.
-    """
+st.write(
+    "These dashboard indicators summarize the solar irradiance dataset. "
+    "Zero-irradiance hours usually represent night-time periods, which are important for forecasting."
 )
 
-# Daily average trend
+# ==============================
+# DAILY AVERAGE TREND
+# ==============================
+
 st.subheader("Daily Average Solar Irradiance")
 
 daily_df = (
@@ -570,10 +605,13 @@ st.pyplot(fig)
 
 st.write(
     "Insight: The daily trend shows how solar irradiance changes across the year. "
-    "Higher periods may reflect clearer weather or stronger seasonal sunlight."
+    "Higher daily averages may indicate clearer weather or stronger seasonal sunlight."
 )
 
-# Average hourly profile
+# ==============================
+# HOURLY PROFILE
+# ==============================
+
 st.subheader("Average Irradiance by Hour of Day")
 
 hourly_profile = (
@@ -592,11 +630,14 @@ ax.set_xticks(range(0, 24))
 st.pyplot(fig)
 
 st.write(
-    "Insight: Irradiance is expected to be near zero overnight and highest around midday. "
+    "Insight: Irradiance is close to zero overnight and usually highest around midday. "
     "This supports using hour-based features in the forecasting model."
 )
 
-# Monthly profile
+# ==============================
+# MONTHLY PROFILE
+# ==============================
+
 st.subheader("Monthly Average Solar Irradiance")
 
 monthly_profile = (
@@ -616,17 +657,67 @@ st.pyplot(fig)
 
 st.write(
     "Insight: The monthly profile shows seasonal variation. "
-    "Month is useful as a calendar feature because solar conditions are not identical all year."
+    "Month is useful as a calendar feature because solar conditions change during the year."
 )
 
-# Actual vs predicted dashboard plot, only appears after modeling code creates predictions_df
+# ==============================
+# WEEKDAY PROFILE
+# ==============================
+
+st.subheader("Average Irradiance by Day of Week")
+
+day_order = [
+    "Monday", "Tuesday", "Wednesday", "Thursday",
+    "Friday", "Saturday", "Sunday"
+]
+
+weekday_profile = (
+    dashboard_df
+    .groupby("day_name", as_index=False)[target_col]
+    .mean()
+    .rename(columns={target_col: "average_irradiance"})
+)
+
+weekday_profile["day_name"] = pd.Categorical(
+    weekday_profile["day_name"],
+    categories=day_order,
+    ordered=True
+)
+
+weekday_profile = weekday_profile.sort_values("day_name")
+
+fig, ax = plt.subplots(figsize=(10, 4))
+ax.bar(weekday_profile["day_name"].astype(str), weekday_profile["average_irradiance"])
+ax.set_title("Average Solar Irradiance by Day of Week")
+ax.set_xlabel("Day of Week")
+ax.set_ylabel("Average Irradiance")
+plt.xticks(rotation=45)
+st.pyplot(fig)
+
+st.write(
+    "Insight: Day-of-week variation is checked to see whether there are repeated weekly patterns. "
+    "For natural solar data, strong weekly differences are usually less important than hour and month."
+)
+
+# ==============================
+# MODEL PREDICTION DASHBOARD
+# ==============================
+
 st.subheader("Model Prediction Dashboard")
 
 if "predictions_df" in globals() and isinstance(predictions_df, pd.DataFrame) and not predictions_df.empty:
     available_models = predictions_df["model"].dropna().unique().tolist()
-    selected_model = st.selectbox("Choose model to visualize", available_models)
 
-    model_plot_df = predictions_df[predictions_df["model"] == selected_model].copy().head(300)
+    selected_model = st.selectbox(
+        "Choose model to visualize",
+        available_models
+    )
+
+    model_plot_df = (
+        predictions_df[predictions_df["model"] == selected_model]
+        .copy()
+        .head(300)
+    )
 
     fig, ax = plt.subplots(figsize=(10, 4))
     ax.plot(model_plot_df["actual"].values, label="Actual")
@@ -642,15 +733,24 @@ if "predictions_df" in globals() and isinstance(predictions_df, pd.DataFrame) an
     ).abs()
 
     st.subheader("Prediction Error Preview")
+
     st.dataframe(
         model_plot_df[["model", "actual", "predicted", "absolute_error"]].head(20),
         use_container_width=True
     )
 
+    mean_abs_error_display = model_plot_df["absolute_error"].mean()
+    max_abs_error_display = model_plot_df["absolute_error"].max()
+
+    col1, col2 = st.columns(2)
+    col1.metric("Displayed Mean Absolute Error", f"{mean_abs_error_display:.2f}")
+    col2.metric("Displayed Max Absolute Error", f"{max_abs_error_display:.2f}")
+
     st.write(
         "Insight: Comparing actual and predicted values helps identify whether the model follows "
         "the solar pattern or misses sudden changes."
     )
+
 else:
     st.info(
         "Prediction dashboard will appear after the modeling section creates a non-empty predictions_df."
