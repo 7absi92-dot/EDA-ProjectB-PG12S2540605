@@ -406,9 +406,7 @@ with st.expander("Prepared X and y preview"):
     st.write("y preview")
     st.dataframe(y.head(10).to_frame("y"), use_container_width=True)
 # ==============================
-# ==============================
 # STUDENT ADDITIONS — MODELING
-# Paste this under the MODELING marker
 # ==============================
 
 from sklearn.ensemble import RandomForestRegressor
@@ -424,7 +422,7 @@ st.subheader("Student Modeling: Time-Based Train/Test Split")
 if len(X) < 50:
     st.warning("Not enough feature rows for modeling after lag/rolling/horizon cleaning.")
 else:
-    # Time-based split: first 80% train, last 20% test
+    # Time-based split: first 80% for training, last 20% for testing
     split_idx = int(len(X) * 0.8)
 
     X_train = X.iloc[:split_idx]
@@ -453,16 +451,17 @@ else:
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
 
-       mae = mean_absolute_error(y_test, y_pred)
-mse = mean_squared_error(y_test, y_pred)
-rmse = np.sqrt(mse)
-r2 = r2_score(y_test, y_pred)
+        # Metrics
+        mae = mean_absolute_error(y_test, y_pred)
+        mse = mean_squared_error(y_test, y_pred)
+        rmse = np.sqrt(mse)
+        r2 = r2_score(y_test, y_pred)
 
         rows.append({
             "model": model_name,
-            "MAE": mae,
-            "RMSE": rmse,
-            "R2": r2,
+            "MAE": round(mae, 4),
+            "RMSE": round(rmse, 4),
+            "R2": round(r2, 4),
             "train_rows": len(X_train),
             "test_rows": len(X_test),
             "split_type": "time-based 80/20"
@@ -474,12 +473,13 @@ r2 = r2_score(y_test, y_pred)
             "predicted": y_pred
         })
 
+        # Add timestamps to prediction table if available
         if timestamp_col in feature_df.columns:
             temp_pred["timestamp"] = feature_df.loc[X_test.index, timestamp_col].values
 
         prediction_rows.append(temp_pred)
 
-    results_df = pd.DataFrame(rows).sort_values("RMSE")
+    results_df = pd.DataFrame(rows).sort_values("RMSE").reset_index(drop=True)
     predictions_df = pd.concat(prediction_rows, ignore_index=True)
 
     st.subheader("Model Metrics Table")
@@ -489,7 +489,11 @@ r2 = r2_score(y_test, y_pred)
     st.success(f"Best model by RMSE: {best_model_name}")
 
     st.subheader("Actual vs Predicted Preview")
-    best_predictions = predictions_df[predictions_df["model"] == best_model_name].copy()
+
+    best_predictions = predictions_df[
+        predictions_df["model"] == best_model_name
+    ].copy()
+
     st.dataframe(best_predictions.head(20), use_container_width=True)
 
     st.subheader("Actual vs Predicted Plot")
@@ -506,9 +510,9 @@ r2 = r2_score(y_test, y_pred)
     st.pyplot(fig)
 
     st.info(
-        "Modeling note: The split is time-based, not random, so the model is tested on later unseen time periods."
+        "Modeling note: This section uses a time-based 80/20 split, "
+        "so the model is trained on earlier observations and tested on later observations."
     )
-
 # ==============================
 # STUDENT ADDITIONS — DASHBOARD
 # Paste this under the DASHBOARD marker
