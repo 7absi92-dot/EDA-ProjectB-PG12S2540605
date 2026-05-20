@@ -931,6 +931,14 @@ st.download_button(
     key="download_submission_json_section8_clean"
 )
 
+st.download_button(
+    label="Download project_card.md",
+    data=project_card_md,
+    file_name="project_card.md",
+    mime="text/markdown",
+    key="download_project_card_md_section8_clean"
+)
+
 project_card_md = ""
 project_card_md += f"# Project B: {project_title_export}\n\n"
 project_card_md += "## Student\n"
