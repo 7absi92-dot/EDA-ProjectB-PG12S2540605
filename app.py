@@ -1037,6 +1037,6 @@ if st.button("Run AI grader"):
                 st.warning("Could not parse valid JSON. Raw output is shown below.")
                 st.text(raw_output)
         except Exception as exc:
-           st.error(f"AI grader request failed: {exc}")
+           st.error(f"AI grader request failed: {exc}"
 )
  
