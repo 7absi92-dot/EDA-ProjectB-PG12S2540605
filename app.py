@@ -473,9 +473,12 @@ else:
             "predicted": y_pred
         })
 
-        # Add timestamps to prediction table if available
-        if timestamp_col in feature_df.columns:
-            temp_pred["timestamp"] = feature_df.loc[X_test.index, timestamp_col].values
+        # Add timestamp safely using clean_df and matching test index
+        if "clean_df" in globals() and timestamp_col in clean_df.columns:
+            try:
+                temp_pred["timestamp"] = clean_df.loc[X_test.index, timestamp_col].values
+            except Exception:
+                temp_pred["timestamp"] = range(len(temp_pred))
 
         prediction_rows.append(temp_pred)
 
