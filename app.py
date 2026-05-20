@@ -416,6 +416,7 @@ from sklearn.dummy import DummyRegressor
 
 results_df = None
 predictions_df = None
+advanced_features_used = []
 
 st.subheader("Student Modeling: Time-Based Train/Test Split")
 
@@ -425,40 +426,36 @@ else:
     # Time-based split: first 80% for training, last 20% for testing
     split_idx = int(len(X) * 0.8)
 
-    X_train = X.iloc[:split_idx]
-    X_test = X.iloc[split_idx:]
+    X_train = X.iloc[:split_idx].copy()
+    X_test = X.iloc[split_idx:].copy()
     y_train = y.iloc[:split_idx]
     y_test = y.iloc[split_idx:]
 
     st.write(f"Training rows: {len(X_train)}")
     st.write(f"Testing rows: {len(X_test)}")
-# Advanced feature engineering beyond the baseline starter features
-X_train = X_train.copy()
-X_test = X_test.copy()
 
-if "hour" in X_train.columns:
-    X_train["hour_sin"] = np.sin(2 * np.pi * X_train["hour"] / 24)
-    X_train["hour_cos"] = np.cos(2 * np.pi * X_train["hour"] / 24)
-    X_test["hour_sin"] = np.sin(2 * np.pi * X_test["hour"] / 24)
-    X_test["hour_cos"] = np.cos(2 * np.pi * X_test["hour"] / 24)
+    # Advanced feature engineering beyond the baseline starter features
+    if "hour" in X_train.columns:
+        X_train["hour_sin"] = np.sin(2 * np.pi * X_train["hour"] / 24)
+        X_train["hour_cos"] = np.cos(2 * np.pi * X_train["hour"] / 24)
+        X_test["hour_sin"] = np.sin(2 * np.pi * X_test["hour"] / 24)
+        X_test["hour_cos"] = np.cos(2 * np.pi * X_test["hour"] / 24)
+        advanced_features_used.extend(["hour_sin", "hour_cos"])
 
-if "month" in X_train.columns:
-    X_train["month_sin"] = np.sin(2 * np.pi * X_train["month"] / 12)
-    X_train["month_cos"] = np.cos(2 * np.pi * X_train["month"] / 12)
-    X_test["month_sin"] = np.sin(2 * np.pi * X_test["month"] / 12)
-    X_test["month_cos"] = np.cos(2 * np.pi * X_test["month"] / 12)
+    if "month" in X_train.columns:
+        X_train["month_sin"] = np.sin(2 * np.pi * X_train["month"] / 12)
+        X_train["month_cos"] = np.cos(2 * np.pi * X_train["month"] / 12)
+        X_test["month_sin"] = np.sin(2 * np.pi * X_test["month"] / 12)
+        X_test["month_cos"] = np.cos(2 * np.pi * X_test["month"] / 12)
+        advanced_features_used.extend(["month_sin", "month_cos"])
 
-if "lag_1" in X_train.columns and "lag_24" in X_train.columns:
-    X_train["lag_difference_24_1"] = X_train["lag_24"] - X_train["lag_1"]
-    X_test["lag_difference_24_1"] = X_test["lag_24"] - X_test["lag_1"]
+    if "lag_1" in X_train.columns and "lag_24" in X_train.columns:
+        X_train["lag_difference_24_1"] = X_train["lag_24"] - X_train["lag_1"]
+        X_test["lag_difference_24_1"] = X_test["lag_24"] - X_test["lag_1"]
+        advanced_features_used.append("lag_difference_24_1")
 
-advanced_features_used = [
-    "hour_sin",
-    "hour_cos",
-    "month_sin",
-    "month_cos",
-    "lag_difference_24_1"
-]
+    st.write("Advanced features added:", advanced_features_used)
+
     models = {
         "Naive Mean Baseline": DummyRegressor(strategy="mean"),
         "Ridge Regression": Ridge(alpha=1.0),
@@ -477,7 +474,6 @@ advanced_features_used = [
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
 
-        # Metrics
         mae = mean_absolute_error(y_test, y_pred)
         mse = mean_squared_error(y_test, y_pred)
         rmse = np.sqrt(mse)
@@ -490,7 +486,8 @@ advanced_features_used = [
             "R2": round(r2, 4),
             "train_rows": len(X_train),
             "test_rows": len(X_test),
-            "split_type": "time-based 80/20"
+            "split_type": "time-based 80/20",
+            "advanced_features": ", ".join(advanced_features_used)
         })
 
         temp_pred = pd.DataFrame({
@@ -498,13 +495,6 @@ advanced_features_used = [
             "actual": y_test.values,
             "predicted": y_pred
         })
-
-        # Add timestamp safely using clean_df and matching test index
-        if "clean_df" in globals() and timestamp_col in clean_df.columns:
-            try:
-                temp_pred["timestamp"] = clean_df.loc[X_test.index, timestamp_col].values
-            except Exception:
-                temp_pred["timestamp"] = range(len(temp_pred))
 
         prediction_rows.append(temp_pred)
 
@@ -540,7 +530,8 @@ advanced_features_used = [
 
     st.info(
         "Modeling note: This section uses a time-based 80/20 split, "
-        "so the model is trained on earlier observations and tested on later observations."
+        "so the model is trained on earlier observations and tested on later observations. "
+        "Additional cyclic and lag-difference features were added beyond the starter baseline."
     )
 # ==============================
 # STUDENT ADDITIONS — DASHBOARD
