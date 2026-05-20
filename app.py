@@ -971,3 +971,72 @@ st.download_button(
     file_name="project_card.md",
     mime="text/markdown"
 )
+
+
+
+# Evidence flag for export/grading
+has_dashboard_plots = True
+st.subheader("8. Export submission files")
+evidence = build_submission_json(
+    student_name,
+    student_id,
+    app_url,
+    repo_url,
+    project_title,
+    project_goal,
+    data_path,
+    df,
+    cleaned_df,
+    model_table,
+    timestamp_col,
+    target_col,
+    int(horizon),
+    resampling_choice,
+    results_df,
+    insights_text,
+)
+ 
+evidence_json_text = json.dumps(evidence, indent=2)
+project_card_text = build_project_card(evidence)
+ 
+col_a, col_b = st.columns(2)
+with col_a:
+    st.download_button(
+        "Download submission.json",
+        data=evidence_json_text,
+        file_name="submission.json",
+        mime="application/json",
+    )
+with col_b:
+    st.download_button(
+        "Download project_card.md",
+        data=project_card_text,
+        file_name="project_card.md",
+        mime="text/markdown",
+    )
+ 
+with st.expander("Preview submission.json"):
+    st.json(evidence)
+ 
+st.subheader("9. AI grader out of 80")
+st.warning("The AI grader uses the fixed /80 rubric. Peer score out of 20 is handled separately by instructors.")
+ 
+api_key = get_openrouter_api_key()
+if st.button("Run AI grader"):
+    if not api_key:
+        st.error("OpenRouter API key is missing. Add it through Streamlit Secrets, environment variable, or the sidebar password field.")
+    else:
+        try:
+            with st.spinner("Calling AI grader..."):
+                raw_output = call_openrouter_grader(api_key, evidence_json_text)
+            parsed = parse_grader_response(raw_output)
+            if parsed is not None:
+                st.success("AI grader returned valid JSON.")
+                st.json(parsed)
+            else:
+                st.warning("Could not parse valid JSON. Raw output is shown below.")
+                st.text(raw_output)
+        except Exception as exc:
+            st.error(f"AI grader request failed: {exc}")
+ 
+ 
