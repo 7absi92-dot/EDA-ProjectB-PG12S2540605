@@ -800,11 +800,8 @@ if "resample_rule" not in globals():
 
 if "insights_text" not in globals():
     insights_text = (
-        "Methodology: The dataset was loaded, audited, cleaned, sorted by time, "
-        "and used to create lag, rolling, calendar, and cyclic features. "
-        "A time-based 80/20 split was used for model evaluation. "
-        "The dashboard includes daily, hourly, monthly, distribution, outlier, "
-        "and actual-versus-predicted views."
+        "The project includes dataset auditing, timestamp parsing, time sorting, "
+        "feature engineering, model comparison, dashboard visuals, and reproducible exports."
     )
 
 has_metrics_table = isinstance(results_df, pd.DataFrame) and not results_df.empty
@@ -833,92 +830,91 @@ project_title_export = project_title if "project_title" in globals() else "Solar
 project_goal_export = project_goal if "project_goal" in globals() else "Forecast solar irradiance using time-series features."
 deployed_url_export = deployed_url if "deployed_url" in globals() else ""
 
-submission = {
-    "student": {
-        "name": student_name_export,
-        "student_id": student_id_export
-    },
-    "project": {
-        "title": project_title_export,
-        "goal": project_goal_export,
-        "deployed_url": deployed_url_export
-    },
-    "dataset": {
-        "rows": dataset_rows,
-        "columns": dataset_columns,
-        "timestamp_column": timestamp_used,
-        "target_column": target_used,
-        "resample_rule": resample_rule,
-        "forecast_horizon": horizon
-    },
-    "data_integrity_evidence": {
-        "timestamp_selected": timestamp_used != "Not selected",
-        "target_selected": target_used != "Not selected",
-        "missing_values_checked": True,
-        "timestamps_parsed": True,
-        "data_sorted_by_time": True,
-        "resampling_discussed": True,
-        "outliers_discussed": True,
-        "missing_timestamp_discussion": "Timestamps were parsed, invalid timestamps were removed, and rows were sorted by time before modeling.",
-        "outlier_discussion": "Outliers were reviewed using an IQR diagnostic. Solar irradiance naturally includes zero values at night, so outliers were discussed rather than automatically removed.",
-        "resampling_discussion": "The app includes optional resampling. For this hourly dataset, hourly resolution is appropriate because solar irradiance changes strongly by hour."
-    },
-    "feature_engineering_evidence": {
-        "baseline_features_created": True,
-        "features": [
-            "lag_1",
-            "lag_24",
-            "rolling_mean_24",
-            "hour",
-            "weekend",
-            "month",
-            "hour_sin",
-            "hour_cos",
-            "month_sin",
-            "month_cos",
-            "lag_difference_24_1"
-        ],
-        "advanced_features_used": advanced_features_used,
-        "y_target_shifted_by_horizon": True
-    },
-    "modeling_evidence": {
-        "student_added_modeling": has_metrics_table,
-        "time_based_split_used": has_metrics_table,
-        "has_metrics_table": has_metrics_table,
-        "has_predictions": has_predictions,
-        "models_compared": [
-            "Naive Mean Baseline",
-            "Ridge Regression",
-            "Random Forest"
-        ],
-        "results_table": results_table,
-        "predictions_preview": predictions_preview
-    },
-    "dashboard_evidence": {
-        "student_added_dashboard": bool(has_dashboard_plots),
-        "has_dashboard_plots": bool(has_dashboard_plots),
-        "has_interactive_filter": True,
-        "dashboard_items": [
-            "KPI cards",
-            "daily average trend",
-            "hourly irradiance profile",
-            "monthly irradiance profile",
-            "weekday profile",
-            "irradiance distribution",
-            "temperature vs irradiance scatter plot",
-            "outlier diagnostic",
-            "actual vs predicted plot"
-        ]
-    },
-    "presentation_evidence": {
-        "insights": insights_text,
-        "methodology": "The workflow loads the dataset, audits it, parses timestamps, sorts by time, engineers baseline and advanced features, applies a time-based split, trains models, and reports metrics.",
-        "reproducibility_notes": "The app runs from one app.py file using data/dataset_sample.csv. Random Forest uses random_state=42. The app exports submission.json and project_card.md.",
-        "limitations": "The current models are basic machine-learning models. Future work could compare additional forecasting methods and forecast horizons."
-    }
+submission = dict()
+submission["student"] = dict()
+submission["student"]["name"] = student_name_export
+submission["student"]["student_id"] = student_id_export
 
+submission["project"] = dict()
+submission["project"]["title"] = project_title_export
+submission["project"]["goal"] = project_goal_export
+submission["project"]["deployed_url"] = deployed_url_export
+
+submission["dataset"] = dict()
+submission["dataset"]["rows"] = dataset_rows
+submission["dataset"]["columns"] = dataset_columns
+submission["dataset"]["timestamp_column"] = timestamp_used
+submission["dataset"]["target_column"] = target_used
+submission["dataset"]["resample_rule"] = resample_rule
+submission["dataset"]["forecast_horizon"] = horizon
+
+submission["data_integrity_evidence"] = dict()
+submission["data_integrity_evidence"]["timestamp_selected"] = timestamp_used != "Not selected"
+submission["data_integrity_evidence"]["target_selected"] = target_used != "Not selected"
+submission["data_integrity_evidence"]["missing_values_checked"] = True
+submission["data_integrity_evidence"]["timestamps_parsed"] = True
+submission["data_integrity_evidence"]["data_sorted_by_time"] = True
+submission["data_integrity_evidence"]["resampling_discussed"] = True
+submission["data_integrity_evidence"]["outliers_discussed"] = True
+submission["data_integrity_evidence"]["missing_timestamp_discussion"] = "Timestamps were parsed, invalid timestamps were removed, and rows were sorted by time before modeling."
+submission["data_integrity_evidence"]["outlier_discussion"] = "Outliers were reviewed using an IQR diagnostic. Solar irradiance naturally includes zero values at night, so outliers were discussed rather than automatically removed."
+submission["data_integrity_evidence"]["resampling_discussion"] = "The app includes optional resampling. For this hourly dataset, hourly resolution is appropriate because solar irradiance changes strongly by hour."
+
+submission["feature_engineering_evidence"] = dict()
+submission["feature_engineering_evidence"]["baseline_features_created"] = True
+submission["feature_engineering_evidence"]["features"] = [
+    "lag_1",
+    "lag_24",
+    "rolling_mean_24",
+    "hour",
+    "weekend",
+    "month",
+    "hour_sin",
+    "hour_cos",
+    "month_sin",
+    "month_cos",
+    "lag_difference_24_1"
+]
+submission["feature_engineering_evidence"]["advanced_features_used"] = advanced_features_used
+submission["feature_engineering_evidence"]["y_target_shifted_by_horizon"] = True
+
+submission["modeling_evidence"] = dict()
+submission["modeling_evidence"]["student_added_modeling"] = has_metrics_table
+submission["modeling_evidence"]["time_based_split_used"] = has_metrics_table
+submission["modeling_evidence"]["has_metrics_table"] = has_metrics_table
+submission["modeling_evidence"]["has_predictions"] = has_predictions
+submission["modeling_evidence"]["models_compared"] = [
+    "Naive Mean Baseline",
+    "Ridge Regression",
+    "Random Forest"
+]
+submission["modeling_evidence"]["results_table"] = results_table
+submission["modeling_evidence"]["predictions_preview"] = predictions_preview
+
+submission["dashboard_evidence"] = dict()
+submission["dashboard_evidence"]["student_added_dashboard"] = bool(has_dashboard_plots)
+submission["dashboard_evidence"]["has_dashboard_plots"] = bool(has_dashboard_plots)
+submission["dashboard_evidence"]["has_interactive_filter"] = True
+submission["dashboard_evidence"]["dashboard_items"] = [
+    "KPI cards",
+    "daily average trend",
+    "hourly irradiance profile",
+    "monthly irradiance profile",
+    "weekday profile",
+    "irradiance distribution",
+    "temperature vs irradiance scatter plot",
+    "outlier diagnostic",
+    "actual vs predicted plot"
+]
+
+submission["presentation_evidence"] = dict()
+submission["presentation_evidence"]["insights"] = insights_text
+submission["presentation_evidence"]["methodology"] = "The workflow loads the dataset, audits it, parses timestamps, sorts by time, engineers baseline and advanced features, applies a time-based split, trains models, and reports metrics."
+submission["presentation_evidence"]["reproducibility_notes"] = "The app runs from one app.py file using data/dataset_sample.csv. Random Forest uses random_state=42. The app exports submission.json and project_card.md."
+submission["presentation_evidence"]["limitations"] = "The current models are basic machine-learning models. Future work could compare additional forecasting methods and forecast horizons."
 
 submission_json = json.dumps(submission, indent=2, default=str)
+evidence_json_text = submission_json
 
 st.subheader("submission.json preview")
 st.json(submission)
@@ -928,15 +924,7 @@ st.download_button(
     data=submission_json,
     file_name="submission.json",
     mime="application/json",
-    key="download_submission_json_section8_clean"
-)
-
-st.download_button(
-    label="Download project_card.md",
-    data=project_card_md,
-    file_name="project_card.md",
-    mime="text/markdown",
-    key="download_project_card_md_section8_clean"
+    key="download_submission_json_final_clean"
 )
 
 project_card_md = ""
@@ -986,7 +974,7 @@ project_card_md += "The project uses a local sample CSV, fixed feature engineeri
 project_card_md += "## Insights\n"
 project_card_md += str(insights_text) + "\n\n"
 project_card_md += "## Limitations and Future Work\n"
-project_card_md += "The current model uses basic machine-learning methods and engineered time features. Future work could compare more advanced forecasting models and test different forecast horizons.\n"
+project_card_md += "The current model uses basic machine-learning models. Future work could compare more advanced forecasting models and forecast horizons.\n"
 
 st.subheader("project_card.md preview")
 st.markdown(project_card_md)
@@ -996,7 +984,7 @@ st.download_button(
     data=project_card_md,
     file_name="project_card.md",
     mime="text/markdown",
-    key="download_project_card_md_section8_clean"
+    key="download_project_card_md_final_clean"
 )
 evidence_json_text = submission_json
 st.subheader("9. AI grader out of 80")
