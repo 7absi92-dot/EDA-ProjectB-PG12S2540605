@@ -1065,36 +1065,80 @@ st.subheader("9. AI grader out of 80")
 st.warning("The AI grader uses the fixed /80 rubric. Peer score out of 20 is handled separately by instructors.")
  
 api_key = get_openrouter_api_key()
-if st.button("Run AI grader"):
-    if not api_key:
-        st.error("OpenRouter API key is missing. Add it through Streamlit Secrets, environment variable, or the sidebar password field.")
-    else:
-        try:
-            with st.spinner("Calling AI grader..."):
-         raw_output = response_json["choices"][0]["message"]["content"].strip()
+if st.button("Run AI Grader"):
+    try:
+        api_key = get_openrouter_api_key()
 
-parsed = None
+        if not api_key:
+            st.error("OpenRouter API key is required to run the AI grader.")
+        else:
+            grader_prompt = AI_GRADER_PROMPT_TEMPLATE.replace(
+                "<insert submission.json contents here>",
+                evidence_json_text
+            )
 
-try:
-    parsed = json.loads(raw_output)
-except Exception:
-    json_match = re.search(r"\{[\s\S]*\}", raw_output)
-    if json_match:
-        try:
-            parsed = json.loads(json_match.group(0))
-        except Exception:
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+
+            payload = {
+                "model": OPENROUTER_MODEL,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are a strict academic grader. Return ONLY valid JSON."
+                    },
+                    {
+                        "role": "user",
+                        "content": grader_prompt
+                    }
+                ],
+                "temperature": 0
+            }
+
+            response = requests.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=60
+            )
+
+            response.raise_for_status()
+            response_json = response.json()
+
+            raw_output = response_json["choices"][0]["message"]["content"].strip()
+
             parsed = None
 
-if parsed is not None:
-    st.success("AI grader returned valid JSON.")
-    st.json(parsed)
+            try:
+                parsed = json.loads(raw_output)
+            except Exception:
+                json_match = re.search(r"\{[\s\S]*\}", raw_output)
+                if json_match:
+                    try:
+                        parsed = json.loads(json_match.group(0))
+                    except Exception:
+                        parsed = None
 
-    if "total_80" in parsed:
-        st.metric("AI Score out of 80", parsed["total_80"])
-else:
-    st.warning("Could not parse valid JSON. Raw output is shown below.")
-    st.code(raw_output)
-        except Exception as exc:
-           st.error(f"AI grader request failed: {exc}"
-)
- 
+            if parsed is not None:
+                st.success("AI grader returned valid JSON.")
+                st.json(parsed)
+
+                if "total_80" in parsed:
+                    st.metric("AI Score out of 80", parsed["total_80"])
+            else:
+                st.warning("Could not parse valid JSON. Raw output is shown below.")
+                st.code(raw_output)
+
+    except Exception as e:
+        error_text = str(e)
+
+        if "429" in error_text or "Too Many Requests" in error_text:
+            st.warning(
+                "OpenRouter returned 429 Too Many Requests. "
+                "This usually means the free model is temporarily rate-limited. "
+                "Download submission.json and project_card.md now, then try the AI grader again later."
+            )
+        else:
+            st.error(f"AI grader request failed: {error_text}")
