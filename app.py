@@ -405,323 +405,248 @@ with st.expander("Prepared X and y preview"):
     st.dataframe(X.head(10), use_container_width=True)
     st.write("y preview")
     st.dataframe(y.head(10).to_frame("y"), use_container_width=True)
-
 # ==============================
-# 6. STUDENT ADDITIONS — MODELING
-# ==============================
+# STUDENT ADDITIONS — MODELING
 
-from sklearn.metrics import mean_absolute_error, mean_squared_error
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
-from sklearn.linear_model import LinearRegression
-import numpy as np
-import pandas as pd
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import Ridge
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.dummy import DummyRegressor
 
-st.header("6. Modeling and Evaluation")
+results_df = None
+predictions_df = None
 
-# Ensure timestamp format and chronological order
-df["timestamp"] = pd.to_datetime(df["timestamp"])
-df = df.sort_values("timestamp").reset_index(drop=True)
+st.subheader("Student Modeling: Time-Based Train/Test Split")
 
-target_col = "ALLSKY_SFC_SW_DWN_Wh_m2"
-
-# ------------------------------
-# Timestamp integrity
-# ------------------------------
-df["time_gap"] = df["timestamp"].diff()
-most_common_gap = df["time_gap"].mode()[0]
-
-st.subheader("Time-Series Integrity Check")
-st.write(f"Most common timestamp interval: **{most_common_gap}**")
-st.write(f"Missing target values: **{df[target_col].isna().sum()}**")
-
-# ------------------------------
-# Feature engineering
-# ------------------------------
-df["hour"] = df["timestamp"].dt.hour
-df["day"] = df["timestamp"].dt.day
-df["month"] = df["timestamp"].dt.month
-df["dayofyear"] = df["timestamp"].dt.dayofyear
-df["weekday"] = df["timestamp"].dt.weekday
-
-df["lag_1"] = df[target_col].shift(1)
-df["lag_24"] = df[target_col].shift(24)
-df["rolling_mean_24"] = df[target_col].rolling(window=24).mean()
-df["rolling_std_24"] = df[target_col].rolling(window=24).std()
-
-df = df.dropna().reset_index(drop=True)
-
-features = [
-    "hour",
-    "day",
-    "month",
-    "dayofyear",
-    "weekday",
-    "lag_1",
-    "lag_24",
-    "rolling_mean_24",
-    "rolling_std_24"
-]
-
-X = df[features]
-y = df[target_col]
-
-# ------------------------------
-# Time-based train/test split
-# Last 20% used for testing
-# ------------------------------
-split_index = int(len(df) * 0.8)
-
-X_train = X.iloc[:split_index]
-X_test = X.iloc[split_index:]
-
-y_train = y.iloc[:split_index]
-y_test = y.iloc[split_index:]
-
-test_time = df["timestamp"].iloc[split_index:]
-
-st.subheader("Time-Based Train/Test Split")
-st.write(f"Training records: **{len(X_train)}**")
-st.write(f"Testing records: **{len(X_test)}**")
-st.write(f"Training period: **{df['timestamp'].iloc[0]} to {df['timestamp'].iloc[split_index-1]}**")
-st.write(f"Testing period: **{df['timestamp'].iloc[split_index]} to {df['timestamp'].iloc[-1]}**")
-
-# ------------------------------
-# Models
-# ------------------------------
-models = {
-    "Linear Regression": LinearRegression(),
-    "Random Forest": RandomForestRegressor(
-        n_estimators=150,
-        random_state=42,
-        max_depth=10
-    ),
-    "Gradient Boosting": GradientBoostingRegressor(
-        n_estimators=150,
-        learning_rate=0.05,
-        max_depth=3,
-        random_state=42
-    )
-}
-
-results = []
-predictions = {}
-
-for model_name, model in models.items():
-    model.fit(X_train, y_train)
-    y_pred_model = model.predict(X_test)
-
-    mae = mean_absolute_error(y_test, y_pred_model)
-    rmse = np.sqrt(mean_squared_error(y_test, y_pred_model))
-    mape = np.mean(np.abs((y_test - y_pred_model) / np.where(y_test == 0, np.nan, y_test))) * 100
-
-    results.append({
-        "model": model_name,
-        "MAE": round(mae, 3),
-        "RMSE": round(rmse, 3),
-        "MAPE": round(mape, 3)
-    })
-
-    predictions[model_name] = y_pred_model
-
-results_df = pd.DataFrame(results).sort_values("RMSE").reset_index(drop=True)
-
-st.subheader("Model Comparison Results")
-st.dataframe(results_df)
-
-best_model_name = results_df.loc[0, "model"]
-y_pred = predictions[best_model_name]
-
-st.success(f"Best model based on RMSE: {best_model_name}")
-
-# ==============================
-# 7. STUDENT ADDITIONS — DASHBOARD
-# ==============================
-
-import matplotlib.pyplot as plt
-
-st.header("7. Dashboard, Visual Analysis and Insights")
-
-# ------------------------------
-# KPI Cards
-# ------------------------------
-st.subheader("Key Performance Indicators")
-
-col1, col2, col3, col4 = st.columns(4)
-
-col1.metric("Total Records", len(df))
-col2.metric("Average Irradiance", f"{df[target_col].mean():.2f} Wh/m²")
-col3.metric("Maximum Irradiance", f"{df[target_col].max():.2f} Wh/m²")
-col4.metric("Best Model", best_model_name)
-
-# ------------------------------
-# Dataset Integrity and Outliers
-# ------------------------------
-st.subheader("Data Integrity and Outlier Review")
-
-Q1 = df[target_col].quantile(0.25)
-Q3 = df[target_col].quantile(0.75)
-IQR = Q3 - Q1
-
-lower_bound = Q1 - 1.5 * IQR
-upper_bound = Q3 + 1.5 * IQR
-
-outliers = df[(df[target_col] < lower_bound) | (df[target_col] > upper_bound)]
-
-st.write(f"Detected outliers using IQR method: **{len(outliers)}**")
-st.write(f"Lower bound: **{lower_bound:.2f} Wh/m²**")
-st.write(f"Upper bound: **{upper_bound:.2f} Wh/m²**")
-
-fig_box, ax_box = plt.subplots(figsize=(10, 4))
-ax_box.boxplot(df[target_col], vert=False)
-ax_box.set_title("Solar Irradiance Outlier Detection")
-ax_box.set_xlabel("Solar Irradiance Wh/m²")
-st.pyplot(fig_box)
-
-st.write("""
-Outliers were checked using the IQR method. However, solar irradiance naturally changes between very low values
-at night and high values during peak sunlight hours. Therefore, the outliers were reviewed carefully instead of
-being removed automatically.
-""")
-
-# ------------------------------
-# Model Comparison Chart
-# ------------------------------
-st.subheader("Model Performance Comparison")
-
-fig_model, ax_model = plt.subplots(figsize=(8, 4))
-ax_model.bar(results_df["model"], results_df["RMSE"])
-ax_model.set_title("Model Comparison Based on RMSE")
-ax_model.set_xlabel("Model")
-ax_model.set_ylabel("RMSE")
-plt.xticks(rotation=20)
-st.pyplot(fig_model)
-
-# ------------------------------
-# Actual vs Predicted
-# ------------------------------
-st.subheader("Actual vs Predicted Forecast")
-
-fig_pred, ax_pred = plt.subplots(figsize=(12, 5))
-ax_pred.plot(test_time, y_test.values, label="Actual")
-ax_pred.plot(test_time, y_pred, label="Predicted")
-ax_pred.set_title(f"Actual vs Predicted Solar Irradiance - {best_model_name}")
-ax_pred.set_xlabel("Timestamp")
-ax_pred.set_ylabel("Solar Irradiance Wh/m²")
-ax_pred.legend()
-st.pyplot(fig_pred)
-
-# ------------------------------
-# Residual Analysis
-# ------------------------------
-st.subheader("Residual Analysis")
-
-residuals = y_test.values - y_pred
-
-fig_res, ax_res = plt.subplots(figsize=(12, 4))
-ax_res.plot(test_time, residuals)
-ax_res.axhline(0, linestyle="--")
-ax_res.set_title("Residuals Over Time")
-ax_res.set_xlabel("Timestamp")
-ax_res.set_ylabel("Prediction Error")
-st.pyplot(fig_res)
-
-fig_hist, ax_hist = plt.subplots(figsize=(8, 4))
-ax_hist.hist(residuals, bins=30)
-ax_hist.set_title("Residual Distribution")
-ax_hist.set_xlabel("Residual Error")
-ax_hist.set_ylabel("Frequency")
-st.pyplot(fig_hist)
-
-st.write("""
-Residual analysis was used to check prediction errors. A good forecasting model should have residuals distributed
-around zero without a strong pattern. Larger errors may occur during sudden weather changes or rapid irradiance variation.
-""")
-
-# ------------------------------
-# Monthly Pattern
-# ------------------------------
-st.subheader("Monthly Solar Irradiance Pattern")
-
-monthly_avg = df.groupby("month")[target_col].mean()
-
-fig_month, ax_month = plt.subplots(figsize=(8, 4))
-ax_month.plot(monthly_avg.index, monthly_avg.values, marker="o")
-ax_month.set_title("Average Monthly Solar Irradiance")
-ax_month.set_xlabel("Month")
-ax_month.set_ylabel("Average Irradiance Wh/m²")
-st.pyplot(fig_month)
-
-# ------------------------------
-# Feature Importance
-# ------------------------------
-st.subheader("Feature Importance")
-
-best_model = models[best_model_name]
-
-if hasattr(best_model, "feature_importances_"):
-    importance_df = pd.DataFrame({
-        "Feature": features,
-        "Importance": best_model.feature_importances_
-    }).sort_values("Importance", ascending=False)
-
-    st.dataframe(importance_df)
-
-    fig_imp, ax_imp = plt.subplots(figsize=(8, 4))
-    ax_imp.barh(importance_df["Feature"], importance_df["Importance"])
-    ax_imp.set_title("Feature Importance")
-    ax_imp.set_xlabel("Importance")
-    ax_imp.invert_yaxis()
-    st.pyplot(fig_imp)
+if len(X) < 50:
+    st.warning("Not enough feature rows for modeling after lag/rolling/horizon cleaning.")
 else:
-    st.info("Feature importance is not available for this model type.")
+    # Time-based split: first 80% train, last 20% test
+    split_idx = int(len(X) * 0.8)
 
-# ------------------------------
-# Interactive Date Filter
-# ------------------------------
-st.subheader("Interactive Date Range Viewer")
+    X_train = X.iloc[:split_idx]
+    X_test = X.iloc[split_idx:]
+    y_train = y.iloc[:split_idx]
+    y_test = y.iloc[split_idx:]
 
-start_date = st.date_input("Select start date", df["timestamp"].min().date())
-end_date = st.date_input("Select end date", df["timestamp"].max().date())
+    st.write(f"Training rows: {len(X_train)}")
+    st.write(f"Testing rows: {len(X_test)}")
 
-filtered_df = df[
-    (df["timestamp"].dt.date >= start_date) &
-    (df["timestamp"].dt.date <= end_date)
-]
+    models = {
+        "Naive Mean Baseline": DummyRegressor(strategy="mean"),
+        "Ridge Regression": Ridge(alpha=1.0),
+        "Random Forest": RandomForestRegressor(
+            n_estimators=100,
+            random_state=42,
+            max_depth=10,
+            n_jobs=-1
+        ),
+    }
 
-fig_filter, ax_filter = plt.subplots(figsize=(12, 5))
-ax_filter.plot(filtered_df["timestamp"], filtered_df[target_col])
-ax_filter.set_title("Solar Irradiance for Selected Date Range")
-ax_filter.set_xlabel("Timestamp")
-ax_filter.set_ylabel("Solar Irradiance Wh/m²")
-st.pyplot(fig_filter)
+    rows = []
+    prediction_rows = []
 
-# ------------------------------
-# Insights and Narrative
-# ------------------------------
-st.subheader("Key Insights and Interpretation")
+    for model_name, model in models.items():
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
 
-st.write(f"""
-1. The dataset was prepared as a proper time-series dataset by converting the timestamp column to datetime format
-and sorting all records chronologically.
+        mae = mean_absolute_error(y_test, y_pred)
+        rmse = mean_squared_error(y_test, y_pred, squared=False)
+        r2 = r2_score(y_test, y_pred)
 
-2. A time-based train/test split was used. The first 80% of the dataset was used for training and the last 20%
-was used for testing. This avoids data leakage and better represents real forecasting conditions.
+        rows.append({
+            "model": model_name,
+            "MAE": mae,
+            "RMSE": rmse,
+            "R2": r2,
+            "train_rows": len(X_train),
+            "test_rows": len(X_test),
+            "split_type": "time-based 80/20"
+        })
 
-3. Three models were compared: Linear Regression, Random Forest, and Gradient Boosting. The best model was
-**{best_model_name}**, selected based on the lowest RMSE value.
+        temp_pred = pd.DataFrame({
+            "model": model_name,
+            "actual": y_test.values,
+            "predicted": y_pred
+        })
 
-4. Lag features and rolling statistics improved the forecasting process because solar irradiance depends strongly
-on previous time steps and daily patterns.
+        if timestamp_col in feature_df.columns:
+            temp_pred["timestamp"] = feature_df.loc[X_test.index, timestamp_col].values
 
-5. Residual analysis shows how prediction errors behave over time. Large residuals may be caused by sudden changes
-in sunlight due to cloud cover, seasonal variation, or weather effects.
+        prediction_rows.append(temp_pred)
 
-6. The dashboard includes KPI cards, outlier detection, model comparison, actual vs predicted forecast, residual plots,
-monthly trend analysis, feature importance, and an interactive date range viewer.
+    results_df = pd.DataFrame(rows).sort_values("RMSE")
+    predictions_df = pd.concat(prediction_rows, ignore_index=True)
 
-7. This forecasting workflow is useful for solar energy planning because it helps estimate future solar resource
-availability at Manah, Oman.
-""")
+    st.subheader("Model Metrics Table")
+    st.dataframe(results_df, use_container_width=True)
+
+    best_model_name = results_df.iloc[0]["model"]
+    st.success(f"Best model by RMSE: {best_model_name}")
+
+    st.subheader("Actual vs Predicted Preview")
+    best_predictions = predictions_df[predictions_df["model"] == best_model_name].copy()
+    st.dataframe(best_predictions.head(20), use_container_width=True)
+
+    st.subheader("Actual vs Predicted Plot")
+
+    plot_df = best_predictions.head(300).copy()
+
+    fig, ax = plt.subplots(figsize=(10, 4))
+    ax.plot(plot_df["actual"].values, label="Actual")
+    ax.plot(plot_df["predicted"].values, label="Predicted")
+    ax.set_title(f"Actual vs Predicted — {best_model_name}")
+    ax.set_xlabel("Test Time Step")
+    ax.set_ylabel(target_col)
+    ax.legend()
+    st.pyplot(fig)
+
+    st.info(
+        "Modeling note: The split is time-based, not random, so the model is tested on later unseen time periods."
+    )
+
+# ==============================
+# STUDENT ADDITIONS — DASHBOARD
+# Paste this under the DASHBOARD marker
+# ==============================
+
+st.subheader("Student Dashboard: Solar Irradiance Insights")
+
+dashboard_df = clean_df.copy()
+dashboard_df[timestamp_col] = pd.to_datetime(dashboard_df[timestamp_col], errors="coerce")
+dashboard_df[target_col] = pd.to_numeric(dashboard_df[target_col], errors="coerce")
+dashboard_df = dashboard_df.dropna(subset=[timestamp_col, target_col]).sort_values(timestamp_col)
+
+dashboard_df["date"] = dashboard_df[timestamp_col].dt.date
+dashboard_df["hour"] = dashboard_df[timestamp_col].dt.hour
+dashboard_df["month"] = dashboard_df[timestamp_col].dt.month
+dashboard_df["day_name"] = dashboard_df[timestamp_col].dt.day_name()
+
+# KPI cards
+avg_irradiance = dashboard_df[target_col].mean()
+max_irradiance = dashboard_df[target_col].max()
+zero_hours_pct = (dashboard_df[target_col] == 0).mean() * 100
+
+col1, col2, col3 = st.columns(3)
+col1.metric("Average Irradiance", f"{avg_irradiance:.2f}")
+col2.metric("Maximum Irradiance", f"{max_irradiance:.2f}")
+col3.metric("Zero-Irradiance Hours", f"{zero_hours_pct:.1f}%")
+
+st.markdown(
+    """
+    These indicators summarize the overall solar resource.  
+    Zero-irradiance hours usually represent night-time periods, which are important for forecasting.
+    """
+)
+
+# Daily average trend
+st.subheader("Daily Average Solar Irradiance")
+
+daily_df = (
+    dashboard_df
+    .groupby("date", as_index=False)[target_col]
+    .mean()
+    .rename(columns={target_col: "daily_average_irradiance"})
+)
+
+fig, ax = plt.subplots(figsize=(10, 4))
+ax.plot(daily_df["date"], daily_df["daily_average_irradiance"])
+ax.set_title("Daily Average Solar Irradiance")
+ax.set_xlabel("Date")
+ax.set_ylabel("Average Irradiance")
+plt.xticks(rotation=45)
+st.pyplot(fig)
+
+st.write(
+    "Insight: The daily trend shows how solar irradiance changes across the year. "
+    "Higher periods may reflect clearer weather or stronger seasonal sunlight."
+)
+
+# Average hourly profile
+st.subheader("Average Irradiance by Hour of Day")
+
+hourly_profile = (
+    dashboard_df
+    .groupby("hour", as_index=False)[target_col]
+    .mean()
+    .rename(columns={target_col: "average_irradiance"})
+)
+
+fig, ax = plt.subplots(figsize=(10, 4))
+ax.bar(hourly_profile["hour"], hourly_profile["average_irradiance"])
+ax.set_title("Average Solar Irradiance by Hour")
+ax.set_xlabel("Hour of Day")
+ax.set_ylabel("Average Irradiance")
+ax.set_xticks(range(0, 24))
+st.pyplot(fig)
+
+st.write(
+    "Insight: Irradiance is expected to be near zero overnight and highest around midday. "
+    "This supports using hour-based features in the forecasting model."
+)
+
+# Monthly profile
+st.subheader("Monthly Average Solar Irradiance")
+
+monthly_profile = (
+    dashboard_df
+    .groupby("month", as_index=False)[target_col]
+    .mean()
+    .rename(columns={target_col: "average_irradiance"})
+)
+
+fig, ax = plt.subplots(figsize=(10, 4))
+ax.plot(monthly_profile["month"], monthly_profile["average_irradiance"], marker="o")
+ax.set_title("Monthly Average Solar Irradiance")
+ax.set_xlabel("Month")
+ax.set_ylabel("Average Irradiance")
+ax.set_xticks(range(1, 13))
+st.pyplot(fig)
+
+st.write(
+    "Insight: The monthly profile shows seasonal variation. "
+    "Month is useful as a calendar feature because solar conditions are not identical all year."
+)
+
+# Actual vs predicted dashboard plot, only appears after modeling code creates predictions_df
+st.subheader("Model Prediction Dashboard")
+
+if "predictions_df" in globals() and isinstance(predictions_df, pd.DataFrame) and not predictions_df.empty:
+    available_models = predictions_df["model"].dropna().unique().tolist()
+    selected_model = st.selectbox("Choose model to visualize", available_models)
+
+    model_plot_df = predictions_df[predictions_df["model"] == selected_model].copy().head(300)
+
+    fig, ax = plt.subplots(figsize=(10, 4))
+    ax.plot(model_plot_df["actual"].values, label="Actual")
+    ax.plot(model_plot_df["predicted"].values, label="Predicted")
+    ax.set_title(f"Actual vs Predicted — {selected_model}")
+    ax.set_xlabel("Test Time Step")
+    ax.set_ylabel(target_col)
+    ax.legend()
+    st.pyplot(fig)
+
+    model_plot_df["absolute_error"] = (
+        model_plot_df["actual"] - model_plot_df["predicted"]
+    ).abs()
+
+    st.subheader("Prediction Error Preview")
+    st.dataframe(
+        model_plot_df[["model", "actual", "predicted", "absolute_error"]].head(20),
+        use_container_width=True
+    )
+
+    st.write(
+        "Insight: Comparing actual and predicted values helps identify whether the model follows "
+        "the solar pattern or misses sudden changes."
+    )
+else:
+    st.info(
+        "Prediction dashboard will appear after the modeling section creates a non-empty predictions_df."
+    )
+
+# Evidence flag for export/grading
+has_dashboard_plots = True
 st.subheader("8. Export submission files")
 evidence = build_submission_json(
     student_name,
