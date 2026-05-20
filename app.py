@@ -919,13 +919,6 @@ submission = {
     "hour",
     "weekend",
     "month",
-    "hour_sin",
-    "hour_cos",
-    "month_sin",
-    "month_cos",
-    "lag_difference_24_1"
-],
-"advanced_features_used": advanced_features_used if "advanced_features_used" in globals() else [],
         "y_target_shifted_by_horizon": True
     },
     "modeling_evidence": {
