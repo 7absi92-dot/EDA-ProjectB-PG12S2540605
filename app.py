@@ -914,9 +914,9 @@ st.download_button(
     label="Download submission.json",
     data=submission_json,
     file_name="submission.json",
-    mime="application/json"
+    mime="application/json",
+    key="download_submission_json_section8"
 )
-
 # ------------------------------
 # Project card markdown
 # ------------------------------
@@ -969,9 +969,9 @@ st.download_button(
     label="Download project_card.md",
     data=project_card_md,
     file_name="project_card.md",
-    mime="text/markdown"
+    mime="text/markdown",
+    key="download_project_card_md_section8"
 )
-
 
 
 # Evidence flag for export/grading
