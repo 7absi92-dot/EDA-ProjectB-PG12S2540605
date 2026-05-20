@@ -982,66 +982,67 @@ st.download_button(
 # Project card markdown
 # ------------------------------
 
-project_card_md = f"""
-# Project B: {project_title_export}
-
-## Student
-- Name: {student_name_export}
-- Student ID: {student_id_export}
-
-## Goal
-{project_goal_export}
-
-## Dataset
-- Rows: {dataset_rows}
-- Timestamp column: `{timestamp_used}`
-- Target column: `{target_used}`
-- Resampling rule: {resample_rule}
-- Forecast horizon: {horizon}
-
-## Data Integrity
-- Missing values checked: Yes
-- Timestamps parsed and sorted: Yes
-- Missing timestamp discussion: Included
-- Outlier discussion: Included
-- Resampling discussion: Included
-
-## Features Used
-Baseline features:
-- lag_1
-- lag_24
-- rolling_mean_24
-- hour
-- weekend
-- month
-
-Advanced features:
-- hour_sin
-- hour_cos
-- month_sin
-- month_cos
-- lag_difference_24_1
-
-## Modeling
-- Metrics table created: {has_metrics_table}
-- Time-based split used: {has_metrics_table}
-- Predictions created: {has_predictions}
-- Models compared: Naive Mean Baseline, Ridge Regression, Random Forest
-
-## Dashboard
-- Dashboard plots created: {bool(has_dashboard_plots)}
-- Visuals include KPI cards, daily trend, hourly profile, monthly profile, weekday profile, distribution plot, outlier diagnostic, and actual-vs-predicted plot.
-- Interactive date filter included: Yes
-
-## Methodology and Reproducibility
-The project uses a local sample CSV, fixed feature engineering steps, an 80/20 time-based split, and fixed random_state values where applicable.
-
-## Insights
-{insights_text}
-
-## Limitations and Future Work
-The current model uses basic machine-learning methods and engineered time features. Future work could compare more advanced forecasting models and test different forecast horizons.
-"""
+project_card_md = "\n".join([
+    f"# Project B: {project_title_export}",
+    "",
+    "## Student",
+    f"- Name: {student_name_export}",
+    f"- Student ID: {student_id_export}",
+    "",
+    "## Goal",
+    str(project_goal_export),
+    "",
+    "## Dataset",
+    f"- Rows: {dataset_rows}",
+    f"- Timestamp column: `{timestamp_used}`",
+    f"- Target column: `{target_used}`",
+    f"- Resampling rule: {resample_rule}",
+    f"- Forecast horizon: {horizon}",
+    "",
+    "## Data Integrity",
+    "- Missing values checked: Yes",
+    "- Timestamps parsed and sorted: Yes",
+    "- Missing timestamp discussion: Included",
+    "- Outlier discussion: Included",
+    "- Resampling discussion: Included",
+    "",
+    "## Features Used",
+    "Baseline features:",
+    "- lag_1",
+    "- lag_24",
+    "- rolling_mean_24",
+    "- hour",
+    "- weekend",
+    "- month",
+    "",
+    "Advanced features:",
+    "- hour_sin",
+    "- hour_cos",
+    "- month_sin",
+    "- month_cos",
+    "- lag_difference_24_1",
+    "",
+    "## Modeling",
+    f"- Metrics table created: {has_metrics_table}",
+    f"- Time-based split used: {has_metrics_table}",
+    f"- Predictions created: {has_predictions}",
+    "- Models compared: Naive Mean Baseline, Ridge Regression, Random Forest",
+    "",
+    "## Dashboard",
+    f"- Dashboard plots created: {bool(has_dashboard_plots)}",
+    "- Visuals include KPI cards, daily trend, hourly profile, monthly profile, weekday profile, distribution plot, outlier diagnostic, and actual-vs-predicted plot.",
+    "- Interactive date filter included: Yes",
+    "",
+    "## Methodology and Reproducibility",
+    "The project uses a local sample CSV, fixed feature engineering steps, an 80/20 time-based split, and fixed random_state values where applicable.",
+    "",
+    "## Insights",
+    str(insights_text),
+    "",
+    "## Limitations and Future Work",
+    "The current model uses basic machine-learning methods and engineered time features. Future work could compare more advanced forecasting models and test different forecast horizons.",
+    ""
+])
 
 st.subheader("project_card.md preview")
 st.markdown(project_card_md)
