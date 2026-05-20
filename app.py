@@ -1037,6 +1037,11 @@ if st.button("Run AI grader"):
                 st.warning("Could not parse valid JSON. Raw output is shown below.")
                 st.text(raw_output)
         except Exception as exc:
-            st.error(f"AI grader request failed: {exc}")
- 
+           #st.error(f"AI grader request failed: {exc}")
+ st.error(
+    "AI grader request failed. If the error is 429 Too Many Requests, "
+    "OpenRouter is temporarily rate-limiting the free model. "
+    "Please wait and try again later. You can still download submission.json "
+    "and project_card.md for submission."
+)
  
