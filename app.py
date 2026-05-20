@@ -1071,14 +1071,29 @@ if st.button("Run AI grader"):
     else:
         try:
             with st.spinner("Calling AI grader..."):
-                raw_output = call_openrouter_grader(api_key, evidence_json_text)
-            parsed = parse_grader_response(raw_output)
-            if parsed is not None:
-                st.success("AI grader returned valid JSON.")
-                st.json(parsed)
-            else:
-                st.warning("Could not parse valid JSON. Raw output is shown below.")
-                st.text(raw_output)
+         raw_output = response_json["choices"][0]["message"]["content"].strip()
+
+parsed = None
+
+try:
+    parsed = json.loads(raw_output)
+except Exception:
+    json_match = re.search(r"\{[\s\S]*\}", raw_output)
+    if json_match:
+        try:
+            parsed = json.loads(json_match.group(0))
+        except Exception:
+            parsed = None
+
+if parsed is not None:
+    st.success("AI grader returned valid JSON.")
+    st.json(parsed)
+
+    if "total_80" in parsed:
+        st.metric("AI Score out of 80", parsed["total_80"])
+else:
+    st.warning("Could not parse valid JSON. Raw output is shown below.")
+    st.code(raw_output)
         except Exception as exc:
            st.error(f"AI grader request failed: {exc}"
 )
